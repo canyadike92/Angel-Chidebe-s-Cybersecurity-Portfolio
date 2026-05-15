@@ -54,8 +54,8 @@ Then the authentication results confirmed it:
 
 | Check | Result | Why it matters |
 |---|---|---|
-| SPF | FAIL | No SPF record exists on the sending domain |
-| DKIM | FAIL | Email was not signed |
+| SPF | NONE | protection.outlook.com: nisihfjoz.co[.]uk does not designate permitted sender hosts |
+| DKIM | FAIL | Domain dkim:microsoft[.]com:smtp is invalid |
 | DMARC | FAIL | No policy published, nothing to enforce |
 
 All three failing together is about as clear a signal as you get.
