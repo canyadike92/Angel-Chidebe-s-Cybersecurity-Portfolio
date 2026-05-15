@@ -69,7 +69,7 @@ All three failing together is about as clear a signal as you get.
 I defanged the link before doing anything with it so I did not accidentally click it:
 
 ```
-hxxps://it-helpdeskk[.]com/reset/m365-login[.]php
+hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 ```
 
 WHOIS on the domain showed it was registered three days before the email was sent, through Namecheap, with privacy protection. That is a very common pattern for purpose-built phishing infrastructure. Legitimate IT helpdesks do not register throwaway domains three days before emailing employees.
