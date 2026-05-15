@@ -1,7 +1,7 @@
 # Phishing Email Analysis: M365 Credential Harvesting Campaign
 
-**Analyst:** [Your Name]
-**Date:** March 2024
+**Analyst:** [Angel Chidebe]
+**Date:** May 2026
 **Case ID:** PHI-2024-047
 **Severity:** High
 **Verdict:** Malicious - confirmed credential harvesting, no breach
@@ -10,7 +10,8 @@
 
 ## What this project is
 
-A Finance department user reported a suspicious email through the company phishing button. This write-up documents the full investigation from raw email headers through to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence.
+A targeted phishing email impersonating an internal IT help desk was submitted via the phishing report button by a user in the Finance department. The email contained a malicious URL redirecting to a spoofed Microsoft 365 login page hosted on a newly registered domain. No credentials were entered by the recipient. The campaign was attributed with medium confidence to a financially motivated threat actor based on infrastructure overlap with prior campaigns tracked in MISP. 
+This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence.
 
 If you are a hiring manager reading this: I wanted to document not just what I found, but how I thought through each step and where I would do things differently next time.
 
@@ -38,15 +39,16 @@ If you are a hiring manager reading this: I wanted to document not just what I f
 The first thing I do with any reported phishing email is pull the raw headers. Headers tell you where the email actually came from, not just who it claims to be from. I copied them out of the `.eml` file and ran them through MXToolbox.
 
 ```
-From:        IT Help Desk <support@it-helpdeskk[.]com>
-Reply-To:    harvest99@protonmail[.]com
-Return-Path: bounce@it-helpdeskk[.]com
-Received:    from mail.it-helpdeskk[.]com (185.220.101[.]47)
+From:        Microsoft account team <no-reply@microsoft[.]com>
+Subject:     Microsoft account unusual sign-in activity
+Reply-To:    media-protection@usual-assist[.]com
+Return-Path: bounce@nisihfjoz.co[.]uk
+Received:    from nisihfjoz.co[.]uk (103.167.154[.]120)
 X-Mailer:    PHPMailer 6.6.4
-Message-ID:  <abc123@it-helpdeskk[.]com>
+Message-ID:  <ce2fb41e-b910-4df7-bbfb-43b8126ba45c@DM6NAM11FT012.eop-nam11.prod.protection.outlook[.]com>
 ```
 
-Two things jumped out immediately. The `Reply-To` is a Protonmail address that has nothing to do with the supposed IT Help Desk sender. That is a classic setup where the attacker wants replies to go somewhere they control. The other flag is `PHPMailer 6.6.4` in the X-Mailer field. That is bulk sending software, not a corporate mail server.
+Two things jumped out immediately. The `Reply-To` is a Usual-assist address that has nothing to do with the supposed Microsoft account team sender. That is a classic setup where the attacker wants replies to go somewhere they control. The other flag is `PHPMailer 6.6.4` in the X-Mailer field. That is bulk sending software, not a corporate mail server.
 
 Then the authentication results confirmed it:
 
