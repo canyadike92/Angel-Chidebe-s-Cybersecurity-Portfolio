@@ -55,7 +55,7 @@ Then the authentication results confirmed it:
 | Check | Result | Why it matters |
 |---|---|---|
 | SPF | NONE | protection.outlook.com: nisihfjoz.co[.]uk does not designate permitted sender hosts |
-| DKIM | FAIL | Domain dkim:microsoft[.]com:smtp is invalid |
+| DKIM | FAIL | Domain dkim:microsoft[.]com:smtp is invalid, No key for signature |
 | DMARC | FAIL | No policy published, nothing to enforce |
 
 All three failing together is about as clear a signal as you get.
@@ -69,6 +69,7 @@ All three failing together is about as clear a signal as you get.
 I defanged the link before doing anything with it so I did not accidentally click it:
 
 ```
+hxxp[://]sefnet[.]net/track/o7436EVFfO5968877utQY8065QJB8855GHAz1
 hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 ```
 
