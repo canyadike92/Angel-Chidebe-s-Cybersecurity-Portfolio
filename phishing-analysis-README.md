@@ -74,36 +74,34 @@ I defanged the link before doing anything with it so I did not accidentally clic
 hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 ```
 
-I submitted it to, CiscoTalos, VirusTotal and URLScan.io respectively for a safe detonation. The summary results were pretty definitive:
+I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for a safe detonation and enrichment. The summary results were pretty definitive:
 
-Cisco Talos - Web Reputation (Untrusted)
-            - Threat Category (Malware, Phishing, Spam) 
-```
-VirusTotal  - Flagged by 15 of 92 vendors at the time of analysis
-```
-URLScan.io  - Live Information (Malicious)
+- **Cisco Talos**   - Web Reputation (Untrusted)
+                    - Threat Category (Malware, Phishing, Spam) 
+
+- **URLScan.io**    - Live Information (Malicious)
+                    - 3 HTTP transactions with credentials exfiltrated via HTTPS GET
+                    - Current DNS A record: 20.150.1.1 (AS8075 - MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US) 
 - This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
-
-- The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content — a common phishing tactic
+- The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content which is a common phishing tactic
 - It could be a legitimate Microsoft link being abused to appear trustworthy
 - Phishers often abuse trusted platforms like Microsoft to bypass spam filters
+- This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
 
-This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
+- **VirusTotal**   - The domain had 15 of 92 vendor detections, all categorized as phishing.
 
+![CiscoTalos results for domain and IP lookups](screenshots/03-virustotal-result.png)
+![URLScan detonation results showing M365 clone and POST destination](screenshots/02-urlscan-result.png) 
+![VirusTotal results for domain and IP lookups](screenshots/03-virustotal-result.png)
 
-![URLScan detonation results showing M365 clone and POST destination](screenshots/02-urlscan-result.png)
 
 ---
 
-### Step 3: VirusTotal enrichment
-
-I ran both the domain and the IP through VirusTotal separately.
-
-The domain `it-helpdeskk[.]com` had 7 vendor detections, all categorized as phishing. Low number at that point in time, which is typical for newly registered infrastructure. Most reputation feeds had not caught up yet.
+ Low number at that point in time, which is typical for newly registered infrastructure. Most reputation feeds had not caught up yet.
 
 The IP `185.220.101[.]47` was more telling. Multiple vendors flagged it as a known Tor exit node. It also appeared in abuse.ch URLhaus and Feodo Tracker datasets from prior campaigns.
 
-![VirusTotal results for domain and IP lookups](screenshots/03-virustotal-result.png)
+
 
 ---
 
