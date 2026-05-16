@@ -72,13 +72,22 @@ I defanged the link before doing anything with it so I did not accidentally clic
 hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 ```
 
-WHOIS on the domain showed the registrar as MarkMonitorInc. (which is not Microsoft), registered in 08-10-1995 with update, transfer, and delete locks. The Domain name shows windows.net. That is a very common pattern for purpose-built phishing infrastructure. .
+I submitted it to, CiscoTalos, VirusTotal and URLScan.io respectively for a safe detonation. The summary results were pretty definitive:
 
-I submitted it to URLScan.io for a safe detonation. The results were pretty definitive:
+Cisco Talos - Web Reputation (Untrusted)
+            - Threat Category (Malware, Phishing, Spam) 
+```
+VirusTotal  - Flagged by 15 of 92 vendors at the time of analysis
+```
+URLScan.io  - Live Information (Malicious)
+- This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
 
-- The page is a pixel
-- The form POST action sends captured credentials to `hxxps://185.220.101[.]47/collect[.]php`
-- VirusTotal had it flagged by 7 of 94 vendors at the time of analysis
+- The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content — a common phishing tactic
+- It could be a legitimate Microsoft link being abused to appear trustworthy
+- Phishers often abuse trusted platforms like Microsoft to bypass spam filters
+
+This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
+
 
 ![URLScan detonation results showing M365 clone and POST destination](screenshots/02-urlscan-result.png)
 
