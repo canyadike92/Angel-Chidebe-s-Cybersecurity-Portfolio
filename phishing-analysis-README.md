@@ -48,7 +48,9 @@ X-Mailer:    PHPMailer 6.6.4
 Message-ID:  <ce2fb41e-b910-4df7-bbfb-43b8126ba45c@DM6NAM11FT012.eop-nam11.prod.protection.outlook[.]com>
 ```
 
-Two things jumped out immediately. The `Reply-To` is a Usual-assist address that has nothing to do with the supposed Microsoft account team sender. That is a classic setup where the attacker wants replies to go somewhere they control. The other flag is `PHPMailer 6.6.4` in the X-Mailer field. That is bulk sending software, not a corporate mail server.
+Observations: Two things jumped out immediately. The Reply-To (@usual-assist[.]com) address differs from the From  Microsoft account team <no-reply@microsoft[.]com) address, a common indicator used to route replies to an attacker-controlled mailbox
+X-Mailer: PHPMailer indicates bulk sending infrastructure, not a corporate mail server
+The Received IP 103.167.154[.]120 does not match the claimed sender organization, a common indicator that proves the attacker wants replies to go somewhere they control. The other flag is `PHPMailer 6.6.4` in the X-Mailer field. That is bulk sending software, not a corporate mail server.
 
 Then the authentication results confirmed it:
 
