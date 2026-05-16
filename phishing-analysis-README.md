@@ -2,15 +2,15 @@
 
 **Analyst:** [Angel Chidebe]
 **Date:** May 2026
-**Case ID:** PHI-2024-047
+**Case ID:** PHI-2026-047
 **Severity:** High
-**Verdict:** Malicious - confirmed credential harvesting, no breach
+**Verdict:** Malicious - confirmed credential harvesting, Phishing, Spam
 
 ---
 
 ## What this project is
 
-A targeted phishing email impersonating an internal IT help desk was submitted via the phishing report button by a user in the Finance department. The email contained a malicious URL redirecting to a spoofed Microsoft 365 login page hosted on a newly registered domain. No credentials were entered by the recipient. The campaign was attributed with medium confidence to a financially motivated threat actor based on infrastructure overlap with prior campaigns tracked in MISP. 
+A targeted phishing email impersonating Microsoft account team was submitted via the phishing report button by a user. The email contained a malicious URL redirecting to a spoofed Microsoft login page hosted on a domain through a malicious URL. No credentials were entered by the recipient. The campaign was attributed with medium confidence to a financially motivated threat actor based on infrastructure overlap with prior campaigns tracked in MISP. 
 This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence.
 
 If you are a hiring manager reading this: I wanted to document not just what I found, but how I thought through each step and where I would do things differently next time.
@@ -69,15 +69,14 @@ All three failing together is about as clear a signal as you get.
 I defanged the link before doing anything with it so I did not accidentally click it:
 
 ```
-hxxp[://]sefnet[.]net/track/o7436EVFfO5968877utQY8065QJB8855GHAz1
 hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 ```
 
-WHOIS on the domain showed it was registered three days before the email was sent, through Namecheap, with privacy protection. That is a very common pattern for purpose-built phishing infrastructure. Legitimate IT helpdesks do not register throwaway domains three days before emailing employees.
+WHOIS on the domain showed the registrar as MarkMonitorInc. (which is not Microsoft), registered in 08-10-1995 with update, transfer, and delete locks. The Domain name shows windows.net. That is a very common pattern for purpose-built phishing infrastructure. .
 
 I submitted it to URLScan.io for a safe detonation. The results were pretty definitive:
 
-- The page is a pixel-perfect clone of the Microsoft 365 login portal
+- The page is a pixel
 - The form POST action sends captured credentials to `hxxps://185.220.101[.]47/collect[.]php`
 - VirusTotal had it flagged by 7 of 94 vendors at the time of analysis
 
