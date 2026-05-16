@@ -95,17 +95,13 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for a 
 ![VirusTotal results for domain and IP lookups](screenshots/03-virustotal-result.png)
 
 
----
-
  Low number at that point in time, which is typical for newly registered infrastructure. Most reputation feeds had not caught up yet.
 
 The IP `185.220.101[.]47` was more telling. Multiple vendors flagged it as a known Tor exit node. It also appeared in abuse.ch URLhaus and Feodo Tracker datasets from prior campaigns.
 
-
-
 ---
 
-### Step 4: IOC extraction
+### Step 3: IOC extraction
 
 I used the Python script in this repo (`tools/ioc_extractor.py`) to parse the raw email and pull all IOCs in one pass. Then I defanged everything manually before documenting them.
 
@@ -136,7 +132,7 @@ python3 tools/ioc_extractor.py --file sample/phishing_sample.eml --defang
 
 ---
 
-### Step 5: Splunk correlation
+### Step 4: Splunk correlation
 
 Once I had the IOCs, I went into Splunk to figure out the blast radius. Three questions I wanted to answer:
 
@@ -183,7 +179,7 @@ At this point I had high confidence that this was a close call rather than a bre
 
 ---
 
-### Step 6: MISP threat intel enrichment
+### Step 5: MISP threat intel enrichment
 
 I submitted the IOCs to MISP to see if any of them matched prior campaigns.
 
@@ -199,7 +195,7 @@ I created a new MISP event to document the fresh indicators and linked it to the
 
 ---
 
-### Step 7: TheHive case and containment
+### Step 6: TheHive case and containment
 
 I opened a TheHive case to track everything formally and document the containment steps.
 
@@ -290,30 +286,3 @@ On the MISP side, I created the new event after the investigation. That process 
 
 ---
 
-## Project files
-
-```
-phishing-analysis/
-├── README.md
-├── sample/
-│   └── phishing_sample.eml        (sanitized, IOCs defanged)
-├── screenshots/
-│   ├── 01-header-analysis.png
-│   ├── 02-urlscan-result.png
-│   ├── 03-virustotal-result.png
-│   ├── 04-splunk-correlation.png
-│   ├── 05-misp-enrichment.png
-│   └── 06-thehive-case.png
-├── iocs/
-│   └── iocs.txt                   (defanged IOC list, TLP:WHITE)
-└── tools/
-    └── ioc_extractor.py           (Python IOC parser)
-```
-
----
-
-> All email samples, IP addresses, domains, and usernames are sanitized, fictional, or sourced from publicly available CTF and phishing training platforms. No real incident data or personal information is included.
-
----
-
-*Part of the [Blue Team Cybersecurity Portfolio](../README.md)*
