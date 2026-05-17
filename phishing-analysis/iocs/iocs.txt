@@ -1,0 +1,24 @@
+# ============================================================
+# PHISHING ANALYSIS - IOC LIST
+# TLP: WHITE - All IOCs defanged
+# Date: May 2026
+# ============================================================
+
+[URLS]
+hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
+
+[DOMAINS]
+bawafide[.]z27[.]web[.]core[.]windows[.]net
+
+[IP ADDRESSES]
+173[.]66[.]46[.]112
+216[.]97[.]88[.]9
+
+[EMAIL]
+MAILER-DAEMON@unicode[.]org
+
+[SMTP RESPONSE]
+553 5.3.0 Email blocked using spamhaus.org
+
+[HOSTING PLATFORM]
+Microsoft Azure Blob Storage (windows[.]net)
