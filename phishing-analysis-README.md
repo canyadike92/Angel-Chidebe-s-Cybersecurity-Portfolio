@@ -4,7 +4,7 @@
 **Date:** May 2026
 **Case ID:** PHI-2026-047
 **Severity:** High
-**Verdict:** Malicious - confirmed credential harvesting, Phishing, Spam
+**Verdict:** Malicious - confirmed credential harvesting, Phishing, Spam.
 
 ---
 
