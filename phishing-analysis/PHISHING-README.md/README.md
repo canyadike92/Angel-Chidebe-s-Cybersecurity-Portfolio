@@ -1,25 +1,41 @@
-Phishing Email Analysis: M365 Credential Harvesting Campaign
-Analyst: [Angel Chidebe] Date: May 2026 Case ID: PHI-2026-047 Severity: High Verdict: Malicious - confirmed credential harvesting, Phishing, Spam.
+# Phishing Email Analysis: Credential Harvesting Campaign
 
+> **Analyst:** [Angel Chidebe]
+> **Date:** [May 2026]
+> **Status:** Complete
+> **Severity:** High
+> **Disposition:** Malicious, Phishing, Spam — Confirmed credential harvesting attempt
+---
 What this project is
 A targeted phishing email impersonating Microsoft account team was submitted via the phishing report button by a user. The email contained a malicious URL redirecting to a spoofed Microsoft login page hosted on a domain through a malicious URL. No credentials were entered by the recipient. The campaign was attributed with medium confidence to a financially motivated threat actor based on infrastructure overlap with prior campaigns tracked in MISP. This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence.
 
 If you are a hiring manager reading this: I wanted to document not just what I found, but how I thought through each step and where I would do things differently next time.
+---
 
-Tools used
-Tool	What I used it for
-Splunk	Finding other recipients, confirming no one clicked
-VirusTotal	Domain and IP reputation checks
-MISP	Cross-referencing IOCs against prior campaigns
-Python	Custom IOC extraction script
-TheHive	Case documentation and task tracking
-MXToolbox	SPF, DKIM, DMARC validation
-URLScan.io	Safe URL detonation
-CyberChef	Base64 decoding, defanging
-Investigation
-Step 1: Email header analysis
+## Tools used
+
+| Tool | Purpose |
+|---|---|
+| Splunk | Log correlation, identifying other affected users |
+| VirusTotal | URL and file hash reputation lookup |
+| MISP | Threat intel enrichment, campaign correlation |
+| Python | Header parsing script, IOC extraction |
+| TheHive | Incident ticketing and case management |
+| MXToolbox | SPF, DKIM, DMARC validation |
+| URLScan.io | Safe URL detonation and screenshot capture |
+| CyberChef | Base64 decoding, URL defanging |
+
+---
+
+## Investigation walkthrough
+
+### Step 1: Email header analysis
 The first thing I do with any reported phishing email is pull the raw headers. Headers tell you where the email actually came from, not just who it claims to be from. I copied them out of the .eml file and ran them through MXToolbox.
+Raw headers were extracted from the `.eml` file and analyzed manually and with MXToolbox.
 
+**Key header fields examined:**
+Email header analysis showing SPF, DKIM, and DMARC failures
+```
 From:        Microsoft account team <no-reply@microsoft[.]com>
 Subject:     Microsoft account unusual sign-in activity
 Reply-To:    media-protection@usual-assist[.]com
@@ -27,45 +43,151 @@ Return-Path: bounce@nisihfjoz.co[.]uk
 Received:    from nisihfjoz.co[.]uk (103.167.154[.]120)
 X-Mailer:    PHPMailer 6.6.4
 Message-ID:  <ce2fb41e-b910-4df7-bbfb-43b8126ba45c@DM6NAM11FT012.eop-nam11.prod.protection.outlook[.]com>
-Observations: Two things jumped out immediately. The Reply-To (@usual-assist[.]com) address differs from the From Microsoft account team <no-reply@microsoft[.]com) address, a common indicator used to route replies to an attacker-controlled mailbox X-Mailer: PHPMailer indicates bulk sending infrastructure, not a corporate mail server The Received IP 103.167.154[.]120 does not match the claimed sender organization, a common indicator that proves the attacker wants replies to go somewhere they control. The other flag is PHPMailer 6.6.4 in the X-Mailer field. That is bulk sending software, not a corporate mail server.
+```
+
+**Authentication results:**
 
 Then the authentication results confirmed it:
+| Check | Result | Notes |
+|---|---|---|
+| SPF | FAIL | protection.outlook.com: nisihfjoz.co[.]uk does not designate permitted sender hosts |
+| DKIM | FAIL | Domain dkim:microsoft[.]com:smtp is invalid, No key for signature present |
+| DMARC | FAIL | No policy published, nothing to enforce |
+| Received path hops | 2 | Unusually short, consistent with direct send from VPS |
 
-Check	Result	Why it matters
-SPF	NONE	protection.outlook.com: nisihfjoz.co[.]uk does not designate permitted sender hosts
-DKIM	FAIL	Domain dkim:microsoft[.]com:smtp is invalid, No key for signature
-DMARC	FAIL	No policy published, nothing to enforce
-All three failing together is about as clear a signal as you get.
+---
 
-Email header analysis showing SPF, DKIM, and DMARC failures
+Observations: Two things jumped out immediately. The Reply-To (@usual-assist[.]com) address differs from the From Microsoft account team <no-reply@microsoft[.]com) address, a common indicator this is used to route replies to an attacker-controlled. The X-Mailer: PHPMailer indicates bulk sending infrastructure, not a corporate mail server. The Received IP 103.167.154[.]120 does not match the claimed sender organization, a common indicator that proves the attacker wants replies to go somewhere they control. The other flag is PHPMailer 6.6.4 in the X-Mailer field. That is bulk sending software, not a corporate mail server.
 
-Step 2: URL and domain analysis
-I defanged the link before doing anything with it so I did not accidentally click it:
 
-hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
+### Step 2: URL and domain analysis
+
+I defanged the embedded link before analyzing it so I did not accidentally click it:
+```
+Original (defanged): hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
+```
+
+**WHOIS lookup:**
+
+```
+Domain:       it-helpdeskk.com
+Registered:   [3 days before email delivery]
+Registrar:    Namecheap
+Name servers: ns1.it-helpdeskk.com / ns2.it-helpdeskk.com
+Registrant:   REDACTED FOR PRIVACY
+```
+Here is a breakdown of my observation
+- MICROSOFT-CORP-MSN-AS-BLOCK — This is the name of Microsoft's Autonomous System (AS), which is a block of IP addresses owned and managed by Microsoft Corporation
+- Microsoft Corporation — Confirms the IP is registered to Microsoft
+- 
+**Red flags:**
+
+- This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
+- Self-hosted name servers on a residential/VPS block
+- No prior web history or legitimate business presence
+
 I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for a safe detonation and enrichment. The summary results were pretty definitive:
 
-Cisco Talos - Web Reputation (Untrusted) - Threat Category (Malware, Phishing, Spam)
+**VirusTotal result:** The domain had 15 of 92 vendor detections, all categorized as phishing.
 
-URLScan.io - Live Information (Malicious) - 3 HTTP transactions with credentials exfiltrated via HTTPS GET - Current DNS A record: 20.150.1.1 (AS8075 - MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US)
+**Cisco Talos:** - Web Reputation (Untrusted) - Threat Category (Malware, Phishing, Spam)
 
-This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
+**URLScan.io:** - Live Information (Malicious) - 3 HTTP transactions with credentials exfiltrated via HTTPS GET - Current DNS A record: 20.150.1.1 (AS8075 - MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US)
 
-The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content which is a common phishing tactic
+---
 
-It could be a legitimate Microsoft link being abused to appear trustworthy
+My thoughts
+- This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
 
-Phishers often abuse trusted platforms like Microsoft to bypass spam filters
+- The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content which is a common phishing tactic
 
-This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
+- It could be a legitimate Microsoft link being abused to appear trustworthy
 
-VirusTotal - The domain had 15 of 92 vendor detections, all categorized as phishing.
+Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
 
-CiscoTalos results for domain and IP lookups URLScan detonation results showing M365 clone and POST destination VirusTotal results for domain and IP lookups
 
-Low number at that point in time, which is typical for newly registered infrastructure. Most reputation feeds had not caught up yet.
+CiscoTalos results for domain and IP lookups URLScan detonation results showing M365 clone and GET destination VirusTotal results for domain and IP lookups
 
 The IP 185.220.101[.]47 was more telling. Multiple vendors flagged it as a known Tor exit node. It also appeared in abuse.ch URLhaus and Feodo Tracker datasets from prior campaigns.
+
+
+
+### Step 3: IOC extraction
+
+All IOCs were extracted and defanged per TLP:CLEAR handling procedures.
+
+```
+# Domains
+it-helpdeskk[.]com
+
+# IP addresses
+185.220.101[.]47
+
+# URLs
+hxxps://it-helpdeskk[.]com/reset/m365-login[.]php
+hxxps://185.220.101[.]47/collect[.]php
+
+# Email addresses
+support@it-helpdeskk[.]com
+harvest99@protonmail[.]com
+bounce@it-helpdeskk[.]com
+
+# Hashes (if attachment present)
+MD5:    [hash]
+SHA256: [hash]
+```
+
+=================================================================
+           IOC EXTRACTION REPORT
+=================================================================
+  Defanged URL          : hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
+  Refanged URL          : https://bawafide.z27.web.core.windows.net/wrza8igw3uko.html
+  Protocol/Scheme       : HTTPS
+  FQDN                  : bawafide.z27.web.core.windows.net
+  Subdomain             : bawafide.z27.web
+  Root Domain           : core.windows.net
+  TLD                   : net
+  URL Path              : /wrza8igw3uko.html
+  Filename              : wrza8igw3uko.html
+  File Extension        : HTML
+  Hosting Platform      : Microsoft Azure Blob Storage (windows.net)
+=================================================================
+Key finding: The attacker is abusing Microsoft Azure infrastructure (windows.net) — which ties back to the MICROSOFT-CORP-MSN-AS-BLOCK finding i saw earlier on urlscan.io
+
+**Python extraction script:** [`tools/ioc_extractor.py`](../../tools/ioc_extractor.py)
+
+```python
+import re
+
+def extract_iocs(text):
+    patterns = {
+        "ipv4": r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
+        "domain": r'\b[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}\b',
+        "url": r'https?://[^\s<>"]+',
+        "email": r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
+        "md5": r'\b[a-fA-F0-9]{32}\b',
+        "sha256": r'\b[a-fA-F0-9]{64}\b',
+    }
+    results = {}
+    for ioc_type, pattern in patterns.items():
+        matches = re.findall(pattern, text)
+        results[ioc_type] = list(set(matches))
+    return results
+
+if __name__ == "__main__":
+    import sys
+    with open(sys.argv[1], "r", errors="ignore") as f:
+        content = f.read()
+    iocs = extract_iocs(content)
+    for ioc_type, values in iocs.items():
+        if values:
+            print(f"\n[{ioc_type.upper()}]")
+            for v in values:
+                print(f"  {v}")
+```
+
+
+
 
 Step 3: IOC extraction
 I used the Python script in this repo (tools/ioc_extractor.py) to parse the raw email and pull all IOCs in one pass. Then I defanged everything manually before documenting them.
@@ -123,6 +245,8 @@ At this point I had high confidence that this was a close call rather than a bre
 
 Splunk queries showing 2 recipients, 0 clicks, 0 anomalous auth events
 
+
+
 Step 5: MISP threat intel enrichment
 I submitted the IOCs to MISP to see if any of them matched prior campaigns.
 
@@ -135,6 +259,8 @@ The infrastructure pattern (Namecheap registrar, self-hosted nameservers, PHPMai
 I created a new MISP event to document the fresh indicators and linked it to the existing cluster.
 
 MISP enrichment showing IP match to prior campaign cluster and TA2541 attribution
+
+
 
 Step 6: TheHive case and containment
 I opened a TheHive case to track everything formally and document the containment steps.
@@ -184,15 +310,666 @@ False positive rate is low. Most legitimate enterprise senders have at least SPF
 
 Tuning note: allowlist known bulk senders like marketing platforms and ticketing tools that may intentionally send without DKIM.
 
-Recommendations
-Publish a DMARC reject policy on the organization's own sending domains so internal spoofing attempts are blocked before delivery
-Block the confirmed IOCs at email gateway, web proxy, and firewall
-Run a targeted phishing simulation against the Finance team within 30 days given they were specifically selected by this actor
-Add the triple-fail detection rule to the SOC playbook as a tier-1 triage check
-Review the bulk sender allowlist for any entries that lack DKIM
-What I would do differently
-The IOC extraction was done manually at first and the Python script came later. In a real SOC environment that should be automated at intake. A few lines in an email parsing pipeline would have saved 10 minutes per case and reduced the chance of missing something.
+## Recommendations
 
-I also relied on URLScan.io for detonation. Some evasive pages serve clean content to known analysis infrastructure. A sandboxed VM with a fresh browser profile would give higher confidence results for anything the reputation feeds are not catching yet.
+1. **Enforce DMARC reject policy** on the organization's own sending domains to prevent spoofing of internal addresses (internal spoofing attempts are blocked before delivery)
+2. **Block identified IOCs** at email gateway, web proxy, and perimeter firewall
+3. **Deploy phishing simulation training** targeting the Finance team specifically so they are proficient in spotting phising tricks
+4. **Add the triple-fail detection rule** to the SOC playbook as a tier-1 triage check
+5. **Review bulk sender allowlist** so that PHPMailer-based senders with no DKIM should not be whitelisted without review
+
+---
+
+## Lessons learned
+
+**What went well:**
+- User reported the email before clicking — security awareness training is working
+- Splunk queries confirmed blast radius quickly with no prolonged uncertainty
+- MISP correlation added attribution context that a standalone VirusTotal check would have missed
+
+**What I would do differently:**
+- Automate IOC extraction at intake rather than doing it manually — the Python script in this repo is the start of that workflow
+- Set up URL detonation in a local sandboxed VM rather than relying solely on URLScan.io — some evasive pages detect automated analysis and serve benign content
+- Create a structured phishing intake form in TheHive to standardize what gets captured on every case from the start
+- The IOC extraction was done manually at first and the Python script came later. In a real SOC environment that should be automated at intake. A few lines in an email parsing pipeline would have saved 10 minutes per case and reduced the chance of missing something.
+
+**Skills gaps identified and addressed:**
+- Spent more time than expected on DMARC policy interpretation — added reference notes to `/notes/email-authentication.md`
+
+
+to be edited -I also relied on URLScan.io for detonation. Some evasive pages serve clean content to known analysis infrastructure. A sandboxed VM with a fresh browser profile would give higher confidence results for anything the reputation feeds are not catching yet.
 
 On the MISP side, I created the new event after the investigation. That process should be closer to real-time so other analysts at other orgs benefit from the fresh infrastructure IOCs before the attacker reuses the same nodes.
+
+---
+
+## Artifacts and evidence
+
+```
+phishing-analysis/
+├── README.md                          <- This file
+├── sample/
+│   └── phishing_sample.eml            <- Sanitized .eml (IOCs defanged)
+├── iocs/
+│   └── iocs.txt                       <- Defanged IOC list (TLP:WHITE)
+├── screenshots/
+│   ├── 01-header-analysis.png         <- MXToolbox header parser output
+│   ├── 02-virustotal-url.png          <- VirusTotal URL detection results
+│   ├── 03-urlscan-result.png          <- URLScan.io detonation + page screenshot
+│   ├── 04-vt-attachment.png           <- VirusTotal file hash (if attachment present)
+│   ├── 05-ioc-extractor-output.png    <- Python script terminal output
+│   ├── 06-splunk-correlation.png      <- Splunk SPL query and results table
+│   ├── 07-misp-enrichment.png         <- MISP event with IOC attributes
+│   └── 08-thehive-case.png            <- TheHive case with tasks and observables
+├── tools/
+    └── ioc_extractor.py               <- Python IOC parser
+```
+
+---
+
+> **Important Disclosure:** Sample .eml pulled from phishing_pot (github.com/rf-peixoto/phishing_pot/blob/main/email/sample-101.eml) for portfolio demonstration purposes.
+All samples, IPs, domains, and usernames are sanitized, fictional, or sourced from publicly available CTF and phishing training platforms. No real incident data is included.
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Phishing Email Analysis: Credential Harvesting Campaign
+
+> **Analyst:** [Your Name]
+> **Date:** [Month Year]
+> **Status:** Complete
+> **Severity:** High
+> **Disposition:** Malicious — Confirmed credential harvesting attempt
+
+---
+
+## Table of contents
+
+1. [Executive summary](#executive-summary)
+2. [Scenario and objectives](#scenario-and-objectives)
+3. [Tools used](#tools-used)
+4. [Investigation walkthrough](#investigation-walkthrough)
+   - [Step 1: Email header analysis](#step-1-email-header-analysis)
+   - [Step 2: URL and domain analysis](#step-2-url-and-domain-analysis)
+   - [Step 3: Attachment analysis](#step-3-attachment-analysis)
+   - [Step 4: IOC extraction](#step-4-ioc-extraction)
+   - [Step 5: SIEM correlation](#step-5-siem-correlation)
+   - [Step 6: Threat intel enrichment](#step-6-threat-intel-enrichment)
+   - [Step 7: Ticketing and escalation](#step-7-ticketing-and-escalation)
+5. [Findings](#findings)
+6. [MITRE ATT&CK mapping](#mitre-attck-mapping)
+7. [Detection rule](#detection-rule)
+8. [Recommendations](#recommendations)
+9. [Lessons learned](#lessons-learned)
+10. [Artifacts and evidence](#artifacts-and-evidence)
+
+---
+
+## Executive summary
+
+A targeted phishing email impersonating an internal IT help desk was submitted via the phishing report button by a user in the Finance department. The email contained a malicious URL redirecting to a spoofed Microsoft 365 login page hosted on a newly registered domain. No credentials were entered by the recipient. The campaign was attributed with medium confidence to a financially motivated threat actor based on infrastructure overlap with prior campaigns tracked in MISP.
+
+**Key findings:**
+
+- Sender domain spoofed using a lookalike: `it-helpdeskk[.]com` (registered 3 days prior to delivery)
+- SPF: Fail | DKIM: Fail | DMARC: Fail
+- Credential harvesting page exfiltrated to `185.220.101[.]47` (known Tor exit node)
+- One additional mailbox received the same email, confirmed via Splunk
+- No evidence of credential submission or post-click activity
+
+---
+
+## Scenario and objectives
+
+**Source:** LetsDefend SOC Alert / TryHackMe Phishing Analysis Room / PhishTank sample
+*(Replace with your actual source and alert ID)*
+
+**Scenario:** A user in the Finance department forwarded a suspicious email to the security team. The email claimed the user's Microsoft 365 password was expiring and prompted an immediate reset via an embedded link.
+
+**Objectives:**
+
+- Determine whether the email is malicious or a false positive
+- Extract all indicators of compromise (IOCs)
+- Identify any users who may have clicked the link or submitted credentials
+- Produce a TheHive ticket with findings and recommended containment actions
+
+---
+
+## Tools used
+
+| Tool | Purpose |
+|---|---|
+| Splunk | Log correlation, identifying other affected users |
+| VirusTotal | URL and file hash reputation lookup |
+| MISP | Threat intel enrichment, campaign correlation |
+| Python | Header parsing script, IOC extraction |
+| TheHive | Incident ticketing and case management |
+| MXToolbox | SPF, DKIM, DMARC validation |
+| URLScan.io | Safe URL detonation and screenshot capture |
+| CyberChef | Base64 decoding, URL defanging |
+
+---
+
+## Investigation walkthrough
+
+### Step 1: Email header analysis
+
+Raw headers were extracted from the `.eml` file and analyzed manually and with MXToolbox.
+
+**Key header fields examined:**
+
+```
+From:        IT Help Desk <support@it-helpdeskk[.]com>
+Reply-To:    harvest99@protonmail[.]com
+Return-Path: bounce@it-helpdeskk[.]com
+Received:    from mail.it-helpdeskk[.]com (185.220.101[.]47)
+X-Mailer:    PHPMailer 6.6.4
+Message-ID:  <abc123@it-helpdeskk[.]com>
+```
+
+**Authentication results:**
+
+| Check | Result | Notes |
+|---|---|---|
+| SPF | FAIL | No SPF record on sending domain |
+| DKIM | FAIL | No DKIM signature present |
+| DMARC | FAIL | No DMARC policy published |
+| Received path hops | 2 | Unusually short, consistent with direct send from VPS |
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 01
+> **File:** `screenshots/01-header-analysis.png`
+>
+> **Where to do this:**
+> - Option A (recommended): [MXToolbox Email Header Analyzer](https://mxtoolbox.com/EmailHeaders.aspx) — paste raw headers from your `.eml` sample
+> - Option B: LetsDefend Email Analyzer tab inside any phishing alert
+>
+> **What your screenshot must show:**
+> - The full parsed header view with From, Reply-To, Return-Path, and Received fields visible
+> - SPF / DKIM / DMARC result rows, all showing FAIL or NONE
+> - The sending IP address visible in the Received chain
+> - If using MXToolbox, the color-coded warning flags are especially useful visually
+>
+> **How to crop:** Results panel only. No need to include the browser address bar.
+>
+> **Caption to paste below your image once added:**
+> `Figure 1: MXToolbox header analysis showing SPF/DKIM/DMARC triple failure and mismatched Reply-To indicating a spoofed sender identity.`
+
+**[ Screenshot 01 — Replace this line with your image once captured ]**
+
+---
+
+**Observations:**
+
+- The `Reply-To` address differs from the `From` address, a common indicator used to route replies to an attacker-controlled mailbox
+- `X-Mailer: PHPMailer` indicates bulk sending infrastructure, not a corporate mail server
+- The `Received` IP `185.220.101[.]47` does not match the claimed sender organization
+
+---
+
+### Step 2: URL and domain analysis
+
+The embedded link was defanged before analysis:
+
+```
+Original (defanged): hxxps://it-helpdeskk[.]com/reset/m365-login[.]php
+```
+
+**WHOIS lookup:**
+
+```
+Domain:       it-helpdeskk.com
+Registered:   [3 days before email delivery]
+Registrar:    Namecheap
+Name servers: ns1.it-helpdeskk.com / ns2.it-helpdeskk.com
+Registrant:   REDACTED FOR PRIVACY
+```
+
+**Red flags:**
+
+- Domain registered 3 days before use, typosquat of a legitimate IT service brand
+- Self-hosted name servers on a residential/VPS block
+- No prior web history or legitimate business presence
+
+**VirusTotal result:** 7/94 vendors flagged as phishing at time of analysis
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 02
+> **File:** `screenshots/02-virustotal-url.png`
+>
+> **Where to do this:** [virustotal.com](https://www.virustotal.com) — URL tab
+>
+> **What your screenshot must show:**
+> - The Detection tab with the vendor verdict count (e.g. "7 / 94 security vendors flagged this URL")
+> - At least 3 vendor names visible with their Phishing or Malicious labels
+> - The full URL being analyzed shown at the top
+> - The Community Score section if visible
+>
+> **Tip:** Use a real phishing URL from [PhishTank](https://phishtank.org) or your TryHackMe / LetsDefend sample. Never submit a live internal URL.
+>
+> **Caption:** `Figure 2: VirusTotal detection results showing 7/94 vendor flags for phishing on the credential harvesting domain.`
+
+**[ Screenshot 02 — Replace this line with your image once captured ]**
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 03
+> **File:** `screenshots/03-urlscan-result.png`
+>
+> **Where to do this:** [urlscan.io](https://urlscan.io) — submit the URL for public scan
+>
+> **What your screenshot must show:**
+> - The Summary tab with the scanned URL and verdict badge
+> - The embedded page screenshot thumbnail (the fake login page visual)
+> - The HTTP transactions or DOM section showing the POST destination
+> - The Malicious or Suspicious verdict tag if present
+>
+> **Why this screenshot matters:** The page thumbnail is the most visually compelling screenshot in this entire write-up. It shows the cloned login page at a glance. Recruiters who skim will stop here.
+>
+> **Caption:** `Figure 3: URLScan.io detonation showing cloned Microsoft 365 login page with POST exfiltration to attacker-controlled IP.`
+
+**[ Screenshot 03 — Replace this line with your image once captured ]**
+
+---
+
+### Step 3: Attachment analysis
+
+No attachment was present in this sample. If analyzing a sample with an attachment, document the following:
+
+```
+Filename:     Password_Reset_Instructions.pdf
+MD5:          [hash]
+SHA256:       [hash]
+File type:    PDF (confirmed via file magic bytes, not extension)
+VirusTotal:   [X]/94 detections
+Behavior:     [Sandbox summary: process spawns, network calls, file writes]
+```
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 04
+> **File:** `screenshots/04-vt-attachment.png`
+> **Only needed if your sample includes an attachment.**
+>
+> **Where to do this:** [virustotal.com](https://www.virustotal.com) — File tab
+>
+> **What your screenshot must show:**
+> - Detection tab: vendor verdict count and flags
+> - Details tab: file metadata including magic bytes, file size, compile timestamp if PE
+> - Behavior tab summary if available: process tree, network connections, dropped files
+>
+> **Tip:** Capture the Detection and Details tabs as two separate crops and stack them vertically in one image using a free tool like ShareX or Greenshot.
+>
+> **Caption:** `Figure 4: VirusTotal file analysis showing detection verdicts and file metadata confirming true file type via magic bytes.`
+
+**[ Screenshot 04 — Replace this line with your image once captured (skip if no attachment) ]**
+
+---
+
+### Step 4: IOC extraction
+
+All IOCs were extracted and defanged per TLP:WHITE handling procedures.
+
+```
+# Domains
+it-helpdeskk[.]com
+
+# IP addresses
+185.220.101[.]47
+
+# URLs
+hxxps://it-helpdeskk[.]com/reset/m365-login[.]php
+hxxps://185.220.101[.]47/collect[.]php
+
+# Email addresses
+support@it-helpdeskk[.]com
+harvest99@protonmail[.]com
+bounce@it-helpdeskk[.]com
+
+# Hashes (if attachment present)
+MD5:    [hash]
+SHA256: [hash]
+```
+
+**Python extraction script:** [`tools/ioc_extractor.py`](../../tools/ioc_extractor.py)
+
+```python
+import re
+
+def extract_iocs(text):
+    patterns = {
+        "ipv4": r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
+        "domain": r'\b[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}\b',
+        "url": r'https?://[^\s<>"]+',
+        "email": r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
+        "md5": r'\b[a-fA-F0-9]{32}\b',
+        "sha256": r'\b[a-fA-F0-9]{64}\b',
+    }
+    results = {}
+    for ioc_type, pattern in patterns.items():
+        matches = re.findall(pattern, text)
+        results[ioc_type] = list(set(matches))
+    return results
+
+if __name__ == "__main__":
+    import sys
+    with open(sys.argv[1], "r", errors="ignore") as f:
+        content = f.read()
+    iocs = extract_iocs(content)
+    for ioc_type, values in iocs.items():
+        if values:
+            print(f"\n[{ioc_type.upper()}]")
+            for v in values:
+                print(f"  {v}")
+```
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 05
+> **File:** `screenshots/05-ioc-extractor-output.png`
+>
+> **Where to do this:** Your local terminal (Mac Terminal, Windows Terminal, or VS Code integrated terminal)
+>
+> **Steps:**
+> 1. Save the script above as `ioc_extractor.py`
+> 2. Save your `.eml` sample as `sample.eml` in the same folder
+> 3. Run: `python3 ioc_extractor.py sample.eml`
+> 4. Screenshot the terminal output
+>
+> **What your screenshot must show:**
+> - The command you ran visible in the terminal
+> - The categorized output: [DOMAIN], [IPV4], [URL], [EMAIL] sections
+> - The extracted IOC values under each category
+>
+> **Tip:** Use a dark terminal theme (e.g. Dracula or One Dark). It reads better in a GitHub portfolio than a white terminal.
+>
+> **Caption:** `Figure 5: Python IOC extractor output showing domains, IPs, URLs, and email addresses parsed from the phishing .eml sample.`
+
+**[ Screenshot 05 — Replace this line with your image once captured ]**
+
+---
+
+### Step 5: SIEM correlation
+
+Splunk was queried to identify any other users who received the same email or clicked the link.
+
+**Query 1 — identify all recipients from sending domain:**
+
+```spl
+index=email_logs sourcetype=mail_logs
+| search sender_domain="it-helpdeskk.com"
+| stats count by recipient, subject, timestamp
+| sort -timestamp
+```
+
+**Result:** 2 recipients identified
+
+**Query 2 — check proxy/web logs for URL access:**
+
+```spl
+index=proxy_logs sourcetype=squid
+| search url="*it-helpdeskk.com*" OR dest_ip="185.220.101.47"
+| stats count by src_ip, url, user, timestamp
+| sort -timestamp
+```
+
+**Result:** 0 clicks detected
+
+**Query 3 — check for credential activity post-delivery:**
+
+```spl
+index=auth_logs sourcetype=o365_audit
+| search UserId IN ("user1@company.com", "user2@company.com")
+| where EventCreationTime > "[email delivery time]"
+| stats count by UserId, Operation, ClientIP, timestamp
+```
+
+**Result:** No anomalous authentication events detected.
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 06
+> **File:** `screenshots/06-splunk-correlation.png`
+>
+> **Where to do this:**
+> - Option A (recommended): [Splunk BOTS dataset](https://github.com/splunk/botsv3) — free, loaded with phishing scenarios
+> - Option B: LetsDefend SIEM tab inside any phishing alert
+> - Option C: Splunk free trial with sample data loaded
+>
+> **What your screenshot must show:**
+> - The Splunk search bar with your full SPL query visible
+> - The results table with at least 2 rows of data (recipient, sender, timestamp fields)
+> - The time range picker showing a specific window, not "All time"
+> - The event count in the top-left of the results panel
+>
+> **Tip:** In Splunk, press Ctrl+\ to format your SPL query onto multiple lines before screenshotting. It looks much more readable than a single-line wall of text.
+>
+> **Caption:** `Figure 6: Splunk correlation query identifying two recipients of the phishing email and confirming zero URL clicks in proxy logs.`
+
+**[ Screenshot 06 — Replace this line with your image once captured ]**
+
+---
+
+### Step 6: Threat intel enrichment
+
+IOCs were submitted to MISP for cross-correlation against known campaigns.
+
+**MISP results:**
+
+- IP `185.220.101[.]47` matched to a known Tor exit node used in prior credential harvesting campaigns
+- Domain infrastructure pattern (Namecheap registration, PHPMailer, self-hosted DNS) matches TTPs of a known financially motivated cluster
+- New MISP event created to track this infrastructure node
+
+**MISP event created:** Event #[XXXX] — `Phishing: M365 credential harvesting — Finance targeting — [Date]`
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 07
+> **File:** `screenshots/07-misp-enrichment.png`
+>
+> **Where to do this:** Your local MISP instance (Docker install, see platform setup guide below)
+>
+> **Steps:**
+> 1. Log into your MISP instance at `http://localhost`
+> 2. Go to Search > Search Attributes and enter one of your IOC values
+> 3. If a match exists: screenshot the results list and the event detail panel
+> 4. If no match: create a new event, add your IOCs as attributes, apply TLP:WHITE tag, and screenshot the completed event
+>
+> **What your screenshot must show:**
+> - The MISP search or event view with your IOC visible
+> - Attribute tags (malicious-activity, phishing, tlp:white)
+> - The event title and date
+> - At least 3 attributes entered (domain, IP, URL)
+>
+> **Caption:** `Figure 7: MISP event created for credential harvesting campaign with IOCs tagged and attributed to known infrastructure cluster.`
+
+**[ Screenshot 07 — Replace this line with your image once captured ]**
+
+---
+
+### Step 7: Ticketing and escalation
+
+A TheHive case was created to document findings and track containment.
+
+**Case details:**
+
+```
+Case title:   PHI-2024-047 — Phishing: M365 credential harvesting
+Severity:     High
+TLP:          WHITE
+PAP:          GREEN
+Tags:         phishing, credential-harvesting, m365, finance
+Assignee:     [Your Name]
+Status:       Resolved
+```
+
+**Tasks completed:**
+
+- [x] Email headers analyzed
+- [x] URL detonated safely
+- [x] IOCs extracted and defanged
+- [x] Splunk correlation — no clicks confirmed
+- [x] MISP enrichment complete
+- [x] Sending domain blocked at email gateway
+- [x] IP blocked at perimeter firewall
+- [x] Second recipient notified
+- [x] Case closed — no breach
+
+---
+
+> #### SCREENSHOT CAPTURE GUIDE 08
+> **File:** `screenshots/08-thehive-case.png`
+>
+> **Where to do this:** Your local TheHive instance (Docker install, see platform setup guide below)
+>
+> **Steps:**
+> 1. Create a new case in TheHive with the title and fields above
+> 2. Add each task from the checklist above to the Tasks section
+> 3. Mark all tasks complete
+> 4. Go to the Observables tab and add each IOC (ip, domain, url, mail types)
+> 5. Tag observables as "phishing" and mark the IP as "sighted"
+> 6. Screenshot the completed case
+>
+> **What your screenshot must show:**
+> - The case header: title, High severity badge, TLP:WHITE label, Resolved status
+> - The Tasks panel with completed checkmarks visible
+> - The Observables tab showing your IOCs with their types and tags
+>
+> **Tip:** TheHive's Observables tab is what separates a real analyst workflow from someone who just opened a Jira ticket. Make sure it is visible and populated.
+>
+> **Caption:** `Figure 8: TheHive case PHI-2024-047 showing completed task checklist, IOC observables, and resolved status following confirmed containment.`
+
+**[ Screenshot 08 — Replace this line with your image once captured ]**
+
+---
+
+## Findings
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 1 | All email authentication controls failed | High | SPF, DKIM, and DMARC all absent on sending domain |
+| 2 | Lookalike domain registered 3 days prior | High | Typosquat of legitimate IT brand |
+| 3 | Credential harvesting exfil endpoint identified | High | POST destination is a known malicious Tor exit node |
+| 4 | Two recipients identified | Medium | Finance team targeted specifically, not a mass blast |
+| 5 | No credential submission confirmed | Informational | No clicks or post-click auth activity detected |
+| 6 | Campaign linked to prior activity in MISP | Medium | Medium-confidence attribution based on infrastructure overlap |
+
+**Overall verdict:** Malicious. Confirmed credential harvesting campaign. No breach occurred. Contained.
+
+---
+
+## MITRE ATT&CK mapping
+
+| Technique ID | Technique name | Observed behavior |
+|---|---|---|
+| T1566.001 | Spearphishing attachment | Targeted phishing delivered via email |
+| T1566.002 | Spearphishing link | Malicious URL embedded in email body |
+| T1078 | Valid accounts | Objective was to steal M365 credentials |
+| T1598.003 | Phishing for information | Credential harvesting form on cloned login page |
+| T1071.001 | App layer protocol: web | Exfiltration via HTTPS POST to attacker server |
+
+---
+
+## Detection rule
+
+```spl
+index=email_logs sourcetype=mail_logs
+| eval spf_fail=if(spf_result="fail" OR spf_result="none", 1, 0)
+| eval dkim_fail=if(dkim_result="fail" OR dkim_result="none", 1, 0)
+| eval dmarc_fail=if(dmarc_result="fail" OR dmarc_result="none", 1, 0)
+| eval triple_fail=spf_fail + dkim_fail + dmarc_fail
+| where triple_fail=3
+| stats count by sender, sender_domain, recipient, subject, timestamp
+| where count >= 1
+| sort -timestamp
+```
+
+**False positive rate:** Low. Legitimate enterprise senders almost always have at least SPF configured.
+
+**Tuning note:** Allowlist known bulk senders (marketing platforms, ticketing systems) that may intentionally lack DKIM.
+
+---
+
+## Recommendations
+
+1. **Enforce DMARC reject policy** on the organization's sending domains to prevent spoofing of internal addresses
+2. **Block identified IOCs** at email gateway, web proxy, and perimeter firewall
+3. **Deploy phishing simulation training** targeting the Finance team specifically
+4. **Add the detection rule above** to the SOC playbook as a tier-1 triage check
+5. **Review bulk sender allowlist** — PHPMailer-based senders with no DKIM should not be whitelisted without review
+
+---
+
+## Lessons learned
+
+**What went well:**
+- User reported the email before clicking — security awareness training is working
+- Splunk queries confirmed blast radius quickly with no prolonged uncertainty
+- MISP correlation added attribution context that a standalone VirusTotal check would have missed
+
+**What I would do differently:**
+- Automate IOC extraction at intake rather than doing it manually — the Python script in this repo is the start of that workflow
+- Set up URL detonation in a local sandboxed VM rather than relying solely on URLScan.io — some evasive pages detect automated analysis and serve benign content
+- Create a structured phishing intake form in TheHive to standardize what gets captured on every case from the start
+
+**Skills gaps identified and addressed:**
+- Spent more time than expected on DMARC policy interpretation — added reference notes to `/notes/email-authentication.md`
+
+---
+
+## Artifacts and evidence
+
+```
+phishing-analysis/
+├── README.md                          <- This file
+├── sample/
+│   └── phishing_sample.eml            <- Sanitized .eml (IOCs defanged)
+├── iocs/
+│   └── iocs.txt                       <- Defanged IOC list (TLP:WHITE)
+├── screenshots/
+│   ├── 01-header-analysis.png         <- MXToolbox header parser output
+│   ├── 02-virustotal-url.png          <- VirusTotal URL detection results
+│   ├── 03-urlscan-result.png          <- URLScan.io detonation + page screenshot
+│   ├── 04-vt-attachment.png           <- VirusTotal file hash (if attachment present)
+│   ├── 05-ioc-extractor-output.png    <- Python script terminal output
+│   ├── 06-splunk-correlation.png      <- Splunk SPL query and results table
+│   ├── 07-misp-enrichment.png         <- MISP event with IOC attributes
+│   └── 08-thehive-case.png            <- TheHive case with tasks and observables
+├── tools/
+    └── ioc_extractor.py               <- Python IOC parser
+```
+
+---
+
+> **Important Disclosure:** Sample .eml pulled from phishing_pot (github.com/rf-peixoto/phishing_pot/blob/main/email/sample-101.eml) for portfolio demonstration purposes.
+All samples, IPs, domains, and usernames are sanitized, fictional, or sourced from publicly available CTF and phishing training platforms. No real incident data is included.
+
+---
