@@ -70,21 +70,12 @@ Original (defanged): hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8
 **WHOIS lookup:**
 
 ```
-Domain:       it-helpdeskk.com
-Registered:   [3 days before email delivery]
-Registrar:    Namecheap
-Name servers: ns1.it-helpdeskk.com / ns2.it-helpdeskk.com
-Registrant:   REDACTED FOR PRIVACY
+Domain:       windows.net
+Registered:   10-08-1995
+Registrar:    MarkMonitor Inc.
+Name servers: ns1-39.azure-dns.com, ns2-39.azure-dns.net, ns3-39.azure-dns.org, ns4-39.azure-dns.info
+Corporation: Microsoft corporation
 ```
-Here is a breakdown of my observation
-- MICROSOFT-CORP-MSN-AS-BLOCK — This is the name of Microsoft's Autonomous System (AS), which is a block of IP addresses owned and managed by Microsoft Corporation
-- Microsoft Corporation — Confirms the IP is registered to Microsoft
-- 
-**Red flags:**
-
-- This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
-- Self-hosted name servers on a residential/VPS block
-- No prior web history or legitimate business presence
 
 I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for a safe detonation and enrichment. The summary results were pretty definitive:
 
@@ -92,11 +83,17 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for a 
 
 **Cisco Talos:** - Web Reputation (Untrusted) - Threat Category (Malware, Phishing, Spam)
 
-**URLScan.io:** - Live Information (Malicious) - 3 HTTP transactions with credentials exfiltrated via HTTPS GET - Current DNS A record: 20.150.1.1 (AS8075 - MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US)
+**URLScan.io:** - Live Information (Malicious) - 3 HTTP transactions with credentials exfiltrated via HTTPS GET - Current DNS As record: 20.150.1.1 (AS8075 - MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US) Autonomous System 13335 (CLOUDFLARENET - Cloudflare). This website contacted 3 IPs in 2 countries across 3 domains to perform 3 HTTP transactions. The main IP is 20.150.1.1, located in Québec, Canada and belongs to MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US. 
 
----
+**Red flags:**
 
-My thoughts
+
+- Self-hosted autonomous sytem servers with separate IP's 104.17.24.14 IP for (CLOUDFLARENET - Cloudflare) different from 20.150.1.1 for (MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation)
+- No prior web history or legitimate business presence
+
+Here is a breakdown of my observation
+- Although MICROSOFT-CORP-MSN-AS-BLOCK is the name of Microsoft's Autonomous System (AS), which is a block of IP addresses owned and managed by Microsoft Corporation
+- Microsoft Corporation — Confirms the IP is registered to Microsoft
 - This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
 
 - The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content which is a common phishing tactic
@@ -105,27 +102,17 @@ My thoughts
 
 Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
 
-
-CiscoTalos results for domain and IP lookups URLScan detonation results showing M365 clone and GET destination VirusTotal results for domain and IP lookups
-
 The IP 185.220.101[.]47 was more telling. Multiple vendors flagged it as a known Tor exit node. It also appeared in abuse.ch URLhaus and Feodo Tracker datasets from prior campaigns.
 
 
 
 ### Step 3: IOC extraction
 
-All IOCs were extracted and defanged per TLP:CLEAR handling procedures.
+I used the Python script in this repo (tools/ioc_extractor.py) to parse the raw email and extract all IOCs in one pass. Then I defanged everything manually before documenting them. All IOCs were extracted and defanged per TLP:CLEAR handling procedures.
 
 ```
-# Domains
-it-helpdeskk[.]com
-
 # IP addresses
 185.220.101[.]47
-
-# URLs
-hxxps://it-helpdeskk[.]com/reset/m365-login[.]php
-hxxps://185.220.101[.]47/collect[.]php
 
 # Email addresses
 support@it-helpdeskk[.]com
@@ -137,7 +124,7 @@ MD5:    [hash]
 SHA256: [hash]
 ```
 
-=================================================================
+**=================================================================
            IOC EXTRACTION REPORT
 =================================================================
   Defanged URL          : hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
@@ -151,7 +138,7 @@ SHA256: [hash]
   Filename              : wrza8igw3uko.html
   File Extension        : HTML
   Hosting Platform      : Microsoft Azure Blob Storage (windows.net)
-=================================================================
+=================================================================**
 Key finding: The attacker is abusing Microsoft Azure infrastructure (windows.net) — which ties back to the MICROSOFT-CORP-MSN-AS-BLOCK finding i saw earlier on urlscan.io
 
 **Python extraction script:** [`tools/ioc_extractor.py`](../../tools/ioc_extractor.py)
@@ -187,31 +174,13 @@ if __name__ == "__main__":
 ```
 
 
-
-
-Step 3: IOC extraction
-I used the Python script in this repo (tools/ioc_extractor.py) to parse the raw email and pull all IOCs in one pass. Then I defanged everything manually before documenting them.
-
-# Domains
-it-helpdeskk[.]com
-
-# IPs
-185.220.101[.]47
-
-# URLs
-hxxps://it-helpdeskk[.]com/reset/m365-login[.]php
-hxxps://185.220.101[.]47/collect[.]php
-
-# Email addresses
-support@it-helpdeskk[.]com
-harvest99@protonmail[.]com
-bounce@it-helpdeskk[.]com
 Full IOC list is in iocs/iocs.txt.
 
 Running the extractor:
 
 python3 tools/ioc_extractor.py --file sample/phishing_sample.eml --defang
-Step 4: Splunk correlation
+
+### Step 4: Splunk Correlation
 Once I had the IOCs, I went into Splunk to figure out the blast radius. Three questions I wanted to answer:
 
 Did anyone else get this email?
@@ -942,34 +911,5 @@ index=email_logs sourcetype=mail_logs
 
 **Skills gaps identified and addressed:**
 - Spent more time than expected on DMARC policy interpretation — added reference notes to `/notes/email-authentication.md`
-
----
-
-## Artifacts and evidence
-
-```
-phishing-analysis/
-├── README.md                          <- This file
-├── sample/
-│   └── phishing_sample.eml            <- Sanitized .eml (IOCs defanged)
-├── iocs/
-│   └── iocs.txt                       <- Defanged IOC list (TLP:WHITE)
-├── screenshots/
-│   ├── 01-header-analysis.png         <- MXToolbox header parser output
-│   ├── 02-virustotal-url.png          <- VirusTotal URL detection results
-│   ├── 03-urlscan-result.png          <- URLScan.io detonation + page screenshot
-│   ├── 04-vt-attachment.png           <- VirusTotal file hash (if attachment present)
-│   ├── 05-ioc-extractor-output.png    <- Python script terminal output
-│   ├── 06-splunk-correlation.png      <- Splunk SPL query and results table
-│   ├── 07-misp-enrichment.png         <- MISP event with IOC attributes
-│   └── 08-thehive-case.png            <- TheHive case with tasks and observables
-├── tools/
-    └── ioc_extractor.py               <- Python IOC parser
-```
-
----
-
-> **Important Disclosure:** Sample .eml pulled from phishing_pot (github.com/rf-peixoto/phishing_pot/blob/main/email/sample-101.eml) for portfolio demonstration purposes.
-All samples, IPs, domains, and usernames are sanitized, fictional, or sourced from publicly available CTF and phishing training platforms. No real incident data is included.
 
 ---
