@@ -3,7 +3,7 @@
 Angel Chidebe | SOC Analyst / Blue Team | [Location or Remote]
 
 [LinkedIn](https://linkedin.com/in/angelchidebe) 
-[TryHackMe](https://tryhackme.com/p/yourprofile) 
+[TryHackMe](https://tryhackme.com/p/angelchidebe) 
 [Email](anyadikecp@gmail.com)
 
 ---
