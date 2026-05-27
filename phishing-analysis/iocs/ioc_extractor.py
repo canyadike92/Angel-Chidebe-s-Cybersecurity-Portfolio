@@ -1,10 +1,7 @@
 # ================================================================
 # PHISHING ANALYSIS - STEP 3: IOC EXTRACTION
-# Author: Your Name
-# Date: May 2026
-# Description: Extracts Indicators of Compromise (IOCs) from
-#              defanged URLs found in phishing emails.
-# Sample URL: hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
+# Description: Extracts Indicators of Compromise (IOCs) from defanged URLs found in phishing emails.
+# URL: hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 # ================================================================
 
 import re
@@ -23,7 +20,7 @@ def refang(url: str) -> str:
 
 refanged_url = refang(defanged_url)
 
-# ── Step 2: Parse components
+#Step 2: Parse components
 parsed = urlparse(refanged_url)
 
 scheme   = parsed.scheme
