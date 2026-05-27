@@ -127,25 +127,27 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for in
 
 Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
 
-The IP 104.17.24[.]14 was more telling. Multiple vendors flagged it as a known Tor exit node. It also appeared in abuse.ch URLhaus and Feodo Tracker datasets from prior campaigns.
+The IP 185.220.101[.]47 was more telling. abuse.ch flagged it as a known Tor exit node.
 
 
 ### Step 3: IOC extraction
 
 I used the Python script in this repo (tools/ioc_extractor.py) to do the following: 
 - parse the all components using Python's urlparse, extract FQDN, subdomain, root domain, path, filename, and hosting platform
-- prints threat intel notes with direct links to query the IOCs on VirusTotal, urlscan.io, and AbuseIPDB. Then I defanged everything before documenting them.
+- print threat intel notes with direct links to query the IOCs on VirusTotal, urlscan.io, and AbuseIPDB. Then I defanged everything before documenting them.
 
 ```
 # IP addresses
 185.220.101[.]47
+104.17.24[.]14
+20.150.1[.]1
 
 # Email addresses
-support@it-helpdeskk[.]com
-harvest99@protonmail[.]com
-bounce@it-helpdeskk[.]com
+no-reply@microsoft[.]com
+media-protection@usual-assist[.]com
+bounce@nisihfjoz.co[.]uk
 
-# Hashes (if attachment present)
+# Hashes (if attachment present)- TO BE WORKED ON
 MD5:    [hash]
 SHA256: [hash]
 ```
@@ -182,7 +184,7 @@ def extract_iocs(text):
     }
     results = {}
     for ioc_type, pattern in patterns.items():
-        matches = re.findall(pattern, text)
+        matches = re.findall(pattern, text) 
         results[ioc_type] = list(set(matches))
     return results
 
