@@ -6,8 +6,42 @@
 > **Severity:** High
 > **Disposition:** Malicious, Phishing, Spam — Confirmed credential harvesting attempt
 ---
-What this project is
-A targeted phishing email impersonating Microsoft account team was submitted via the phishing report button by a user. The email contained a malicious URL redirecting to a spoofed Microsoft login page hosted on a domain through a malicious URL. No credentials were entered by the recipient. The campaign was attributed with medium confidence to a financially motivated threat actor based on infrastructure overlap with prior campaigns tracked in MISP. This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence.
+
+## Table of contents
+
+1. [Scenario and objectives](#scenario-and-objectives)
+2. [Tools used](#tools-used)
+3. [Investigation walkthrough](#investigation-walkthrough)
+   - [Step 1: Email header analysis](#step-1-email-header-analysis)
+   - [Step 2: URL and domain analysis](#step-2-url-and-domain-analysis)
+   - [Step 3: Attachment analysis](#step-3-attachment-analysis)
+   - [Step 4: IOC extraction](#step-4-ioc-extraction)
+   - [Step 5: SIEM correlation](#step-5-siem-correlation)
+   - [Step 6: Threat intel enrichment](#step-6-threat-intel-enrichment)
+   - [Step 7: Ticketing and escalation](#step-7-ticketing-and-escalation)
+5. [Findings](#findings)
+6. [MITRE ATT&CK mapping](#mitre-attck-mapping)
+7. [Detection rule](#detection-rule)
+8. [Recommendations](#recommendations)
+9. [Lessons learned](#lessons-learned)
+10. [Artifacts and evidence](#artifacts-and-evidence)
+
+---
+
+## Scenario and Objectives
+
+**Scenario:** A targeted phishing email impersonating Microsoft account team was submitted via the phishing report button by a user. The email claimed there was an unusual sign-in activity in the user's Microsoft 365 account which could lead to account suspension, prompting an immediate reset via an embedded link. The embedded link contained a malicious URL redirecting to a spoofed Microsoft login page hosted on a domain through a malicious URL.
+
+**Objectives:** (WORK ON THIS)
+- Determine whether the email is malicious or a false positive
+- Extract all indicators of compromise (IOCs)
+- Identify any users who may have clicked the link or submitted credentials
+- Produce a TheHive ticket with findings and recommended containment actions
+
+**What this project is:** This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence.
+
+**Source:** Sample .eml - Phishing Pot (github.com/rf-peixoto/phishing_pot/blob/main/email/sample-101.eml) 
+            URL         - PhisTank
 
 If you are a hiring manager reading this: I wanted to document not just what I found, but how I thought through each step and where I would do things differently next time.
 ---
@@ -30,8 +64,7 @@ If you are a hiring manager reading this: I wanted to document not just what I f
 ## Investigation walkthrough
 
 ### Step 1: Email header analysis
-The first thing I do with any reported phishing email is pull the raw headers. Headers tell you where the email actually came from, not just who it claims to be from. I copied them out of the .eml file and ran them through MXToolbox.
-Raw headers were extracted from the `.eml` file and analyzed manually and with MXToolbox.
+The first thing I do with any reported phishing email is pull the raw headers because it tells me where the email actually came from, not just who it claims to be from. The raw headers were extracted from the .eml file and analyzed manually with MXToolbox.
 
 **Key header fields examined:**
 Email header analysis showing SPF, DKIM, and DMARC failures
@@ -44,7 +77,6 @@ Received:    from nisihfjoz.co[.]uk (103.167.154[.]120)
 X-Mailer:    PHPMailer 6.6.4
 Message-ID:  <ce2fb41e-b910-4df7-bbfb-43b8126ba45c@DM6NAM11FT012.eop-nam11.prod.protection.outlook[.]com>
 ```
-
 **Authentication results:**
 
 Then the authentication results confirmed it:
@@ -53,12 +85,10 @@ Then the authentication results confirmed it:
 | SPF | FAIL | protection.outlook.com: nisihfjoz.co[.]uk does not designate permitted sender hosts |
 | DKIM | FAIL | Domain dkim:microsoft[.]com:smtp is invalid, No key for signature present |
 | DMARC | FAIL | No policy published, nothing to enforce |
-| Received path hops | 2 | Unusually short, consistent with direct send from VPS |
 
 ---
 
-Observations: Two things jumped out immediately. The Reply-To (@usual-assist[.]com) address differs from the From Microsoft account team <no-reply@microsoft[.]com) address, a common indicator this is used to route replies to an attacker-controlled. The X-Mailer: PHPMailer indicates bulk sending infrastructure, not a corporate mail server. The Received IP 103.167.154[.]120 does not match the claimed sender organization, a common indicator that proves the attacker wants replies to go somewhere they control. The other flag is PHPMailer 6.6.4 in the X-Mailer field. That is bulk sending software, not a corporate mail server.
-
+Observations: Two things jumped out immediately. The Reply-To (@usual-assist[.]com) address differs from the From Microsoft account team <no-reply@microsoft[.]com) address, a common indicator that proves the attacker wants replies to go somewhere they control. The other flag is PHPMailer 6.6.4 in the X-Mailer field indicates bulk sending infrastructure, not a corporate mail server. 
 
 ### Step 2: URL and domain analysis
 
@@ -77,7 +107,7 @@ Name servers: ns1-39.azure-dns.com, ns2-39.azure-dns.net, ns3-39.azure-dns.org, 
 Corporation: Microsoft corporation
 ```
 
-I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for a safe detonation and enrichment. The summary results were pretty definitive:
+I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for individual analysis. The summary results were pretty definitive:
 
 **VirusTotal result:** The domain had 15 of 92 vendor detections, all categorized as phishing.
 
@@ -86,29 +116,25 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for a 
 **URLScan.io:** - Live Information (Malicious) - 3 HTTP transactions with credentials exfiltrated via HTTPS GET - Current DNS As record: 20.150.1.1 (AS8075 - MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US) Autonomous System 13335 (CLOUDFLARENET - Cloudflare). This website contacted 3 IPs in 2 countries across 3 domains to perform 3 HTTP transactions. The main IP is 20.150.1.1, located in Québec, Canada and belongs to MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation, US. 
 
 **Red flags:**
+- Two separate Autonomous sytem servers with separate IP's 104.17.24.14 IP for (CLOUDFLARENET - Cloudflare) and 20.150.1.1 for (MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation).
+- IP 20.150.1.1 was operating from Canada although Microsoft Corporation is a USA company mainly operating in the USA
 
-
-- Self-hosted autonomous sytem servers with separate IP's 104.17.24.14 IP for (CLOUDFLARENET - Cloudflare) different from 20.150.1.1 for (MICROSOFT-CORP-MSN-AS-BLOCK - Microsoft Corporation)
-- No prior web history or legitimate business presence
-
-Here is a breakdown of my observation
-- Although MICROSOFT-CORP-MSN-AS-BLOCK is the name of Microsoft's Autonomous System (AS), which is a block of IP addresses owned and managed by Microsoft Corporation
-- Microsoft Corporation — Confirms the IP is registered to Microsoft
-- This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
+**Here is a breakdown of my observation:**
+- MICROSOFT-CORP-MSN-AS-BLOCK is the name of Microsoft's Autonomous System (AS), which is a block of IP addresses owned and managed by Microsoft Corporation. This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
 
 - The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content which is a common phishing tactic
-
 - It could be a legitimate Microsoft link being abused to appear trustworthy
 
 Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
 
-The IP 185.220.101[.]47 was more telling. Multiple vendors flagged it as a known Tor exit node. It also appeared in abuse.ch URLhaus and Feodo Tracker datasets from prior campaigns.
-
+The IP 104.17.24[.]14 was more telling. Multiple vendors flagged it as a known Tor exit node. It also appeared in abuse.ch URLhaus and Feodo Tracker datasets from prior campaigns.
 
 
 ### Step 3: IOC extraction
 
-I used the Python script in this repo (tools/ioc_extractor.py) to parse the raw email and extract all IOCs in one pass. Then I defanged everything manually before documenting them. All IOCs were extracted and defanged per TLP:CLEAR handling procedures.
+I used the Python script in this repo (tools/ioc_extractor.py) to do the following: 
+- parse the all components using Python's urlparse, extract FQDN, subdomain, root domain, path, filename, and hosting platform
+- prints threat intel notes with direct links to query the IOCs on VirusTotal, urlscan.io, and AbuseIPDB. Then I defanged everything before documenting them.
 
 ```
 # IP addresses
@@ -124,9 +150,7 @@ MD5:    [hash]
 SHA256: [hash]
 ```
 
-**=================================================================
            IOC EXTRACTION REPORT
-=================================================================
   Defanged URL          : hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
   Refanged URL          : https://bawafide.z27.web.core.windows.net/wrza8igw3uko.html
   Protocol/Scheme       : HTTPS
@@ -138,8 +162,9 @@ SHA256: [hash]
   Filename              : wrza8igw3uko.html
   File Extension        : HTML
   Hosting Platform      : Microsoft Azure Blob Storage (windows.net)
-=================================================================**
-Key finding: The attacker is abusing Microsoft Azure infrastructure (windows.net) — which ties back to the MICROSOFT-CORP-MSN-AS-BLOCK finding i saw earlier on urlscan.io
+
+Key finding: The attacker abused Microsoft Azure infrastructure (windows.net) to host a phishing page, exploiting the trusted domain to bypass 
+spam filters.
 
 **Python extraction script:** [`tools/ioc_extractor.py`](../../tools/ioc_extractor.py)
 
