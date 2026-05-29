@@ -160,7 +160,7 @@ if __name__ == "__main__":
     Please verify your account by clicking the link below:
     hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 
-    Sender IP: 173.66.46.112
+    Sender IP: 104.24.17.17
     Reply-To: phishing@evil-domain.ru
 
     MD5:    d41d8cd98f00b204e9800998ecf8427e
