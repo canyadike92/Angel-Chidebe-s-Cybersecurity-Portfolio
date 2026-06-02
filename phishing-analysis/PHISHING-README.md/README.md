@@ -70,7 +70,7 @@ The first thing I do with any reported phishing email is pull the raw headers be
 Email header analysis showing SPF, DKIM, and DMARC failures
 ```
 From:        Microsoft account team <no-reply@microsoft[.]com>
-Subject:     Microsoft account unusual sign-in activity
+Subject:     Urgent: Microsoft account unusual sign-in activity. Verify your account
 Reply-To:    media-protection@usual-assist[.]com
 Return-Path: bounce@nisihfjoz.co[.]uk
 Received:    from nisihfjoz.co[.]uk (103.167.154[.]120)
@@ -96,9 +96,7 @@ I defanged the embedded link before analyzing it so I did not accidentally click
 ```
 Original (defanged): hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 ```
-
 **WHOIS lookup:**
-
 ```
 Domain:       windows.net
 Registered:   10-08-1995
@@ -106,7 +104,6 @@ Registrar:    MarkMonitor Inc.
 Name servers: ns1-39.azure-dns.com, ns2-39.azure-dns.net, ns3-39.azure-dns.org, ns4-39.azure-dns.info
 Corporation: Microsoft corporation
 ```
-
 I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for individual analysis. The summary results were pretty definitive:
 
 **VirusTotal result:** The domain had 15 of 92 vendor detections, all categorized as phishing.
@@ -127,34 +124,15 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for in
 
 Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
 
-The IP 185.220.101[.]47 was more telling. abuse.ch flagged it as a known Tor exit node.
-
-
-### Step 3: IOC extraction
+## Step 3: IOC extraction
 
 I used the Python script in this repo (tools/ioc_extractor.py) to do the following: 
 - parse the all components using Python's urlparse, extract FQDN, subdomain, root domain, path, filename, and hosting platform
 - print threat intel notes with direct links to query the IOCs on VirusTotal, urlscan.io, and AbuseIPDB. Then I defanged everything before documenting them.
 
 ```
-# IP addresses
-185.220.101[.]47
-104.17.24[.]14
-20.150.1[.]1
-
-# Email addresses
-no-reply@microsoft[.]com
-media-protection@usual-assist[.]com
-bounce@nisihfjoz.co[.]uk
-
-# Hashes (if attachment present)- TO BE WORKED ON
-MD5:    [hash]
-SHA256: [hash]
-```
-
-           IOC EXTRACTION REPORT
+# IOC EXTRACTION AND DEEP URL ANALYSIS REPORT
   Defanged URL          : hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
-  Refanged URL          : https://bawafide.z27.web.core.windows.net/wrza8igw3uko.html
   Protocol/Scheme       : HTTPS
   FQDN                  : bawafide.z27.web.core.windows.net
   Subdomain             : bawafide.z27.web
@@ -164,50 +142,24 @@ SHA256: [hash]
   Filename              : wrza8igw3uko.html
   File Extension        : HTML
   Hosting Platform      : Microsoft Azure Blob Storage (windows.net)
+  MD5                   : [d41d8cd98f00b204e9800998ecf8427e]
+  SHA256                : [e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855]
+```
+How it all connects together
 
 Key finding: The attacker abused Microsoft Azure infrastructure (windows.net) to host a phishing page, exploiting the trusted domain to bypass 
-spam filters.
+spam filtersby doing the following:
 
-**Python extraction script:** [`tools/ioc_extractor.py`](../../tools/ioc_extractor.py)
+STEP 1 → Attacker hosts phishing page on Azure (104.17.24.14)
+STEP 2 → Sends phishing email via SMTP (173.66.46.112)
+STEP 3 → Mail server blocks it (Frame 156 code 553)
+STEP 4 → Python pipeline extracts all IOCs
 
-```python
-import re
+**IOC extraction screenshots:** [`tools/ioc_extractor.py`](../../tools/ioc_extractor.py)
 
-def extract_iocs(text):
-    patterns = {
-        "ipv4": r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
-        "domain": r'\b[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}\b',
-        "url": r'https?://[^\s<>"]+',
-        "email": r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
-        "md5": r'\b[a-fA-F0-9]{32}\b',
-        "sha256": r'\b[a-fA-F0-9]{64}\b',
-    }
-    results = {}
-    for ioc_type, pattern in patterns.items():
-        matches = re.findall(pattern, text) 
-        results[ioc_type] = list(set(matches))
-    return results
+Full IOC pipeline is in iocs/ioc_extractor.py.
 
-if __name__ == "__main__":
-    import sys
-    with open(sys.argv[1], "r", errors="ignore") as f:
-        content = f.read()
-    iocs = extract_iocs(content)
-    for ioc_type, values in iocs.items():
-        if values:
-            print(f"\n[{ioc_type.upper()}]")
-            for v in values:
-                print(f"  {v}")
-```
-
-
-Full IOC list is in iocs/iocs.txt.
-
-Running the extractor:
-
-python3 tools/ioc_extractor.py --file sample/phishing_sample.eml --defang
-
-### Step 4: Splunk Correlation
+## Step 4: SIEM/Splunk Correlation
 Once I had the IOCs, I went into Splunk to figure out the blast radius. Three questions I wanted to answer:
 
 Did anyone else get this email?
@@ -241,9 +193,7 @@ At this point I had high confidence that this was a close call rather than a bre
 
 Splunk queries showing 2 recipients, 0 clicks, 0 anomalous auth events
 
-
-
-Step 5: MISP threat intel enrichment
+## Step 5: MISP threat intel enrichment
 I submitted the IOCs to MISP to see if any of them matched prior campaigns.
 
 The IP 185.220.101[.]47 matched MISP Event #4471, which tracks Tor exit nodes used in financially motivated phishing targeting financial services. Fourteen prior events in the cluster.
@@ -256,9 +206,7 @@ I created a new MISP event to document the fresh indicators and linked it to the
 
 MISP enrichment showing IP match to prior campaign cluster and TA2541 attribution
 
-
-
-Step 6: TheHive case and containment
+## Step 6: TheHive case and containment
 I opened a TheHive case to track everything formally and document the containment steps.
 
 Case:      PHI-2024-047
@@ -277,7 +225,7 @@ Containment actions taken:
  Case closed, no breach confirmed
 TheHive case showing completed task checklist and resolution
 
-Findings summary
+## Findings summary
 Finding	Severity
 All three email auth controls failed (SPF, DKIM, DMARC)	High
 Lookalike domain registered 3 days before delivery	High
@@ -285,14 +233,39 @@ Credential harvesting POST endpoint identified on known Tor exit node	High
 Two Finance recipients targeted, not a broad blast	Medium
 Campaign infrastructure linked to TA2541 cluster with medium confidence	Medium
 No credential submission or post-click activity confirmed	Informational
-MITRE ATT&CK mapping
-Technique	ID	Observed
-Spearphishing link	T1566.002	Malicious URL embedded in email body
-Valid accounts	T1078	Objective was M365 credential theft
-Phishing for information	T1598.003	Credential harvesting via cloned login page
-Web protocols	T1071.001	Credentials exfiltrated via HTTPS POST
-Detection rule
+
+## MITRE ATT&CK Mapping
+
+### T1566.002 — Phishing: Spearphishing Link
+The phishing email contained a malicious URL embedded in the body.
+The URL was defanged as:
+hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
+This is consistent with spearphishing via link — a common initial
+access technique.
+
+### T1036.005 — Masquerading: Match Legitimate Name
+The attacker chose the subdomain 'bawafide' to mimic the English
+word 'bona fide', creating a false sense of legitimacy for the victim.
+
+### T1583.001 — Acquire Infrastructure: Domains
+The attacker hosted the phishing page on Microsoft Azure (windows.net),
+a trusted platform, to bypass email security filters and spam blockers.
+The randomized filename (wrza8igw3uko.html) suggests an auto-generated
+phishing kit was used.
+
+### T1598.003 — Phishing for Information: Spearphishing Link
+The HTML page at the end of the URL is assessed to be a credential
+harvesting form — consistent with phishing for information via link.
+
+### T1566.001 — Phishing: Spearphishing Attachment
+SMTP session captured in traffic.pcap confirms the email was sent
+from IP 173.66.46.112, which was blocked by Spamhaus with code 553
+(Frame 156). The sender spoofed MAILER-DAEMON@unicode.org.
+
+## Detection rule
 This SPL rule detects emails that fail all three authentication checks. Triple failure from a single sender is a strong phishing signal.
+
+
 
 index=email_logs sourcetype=mail_logs
 | eval spf_fail=if(spf_result="fail" OR spf_result="none", 1, 0)
@@ -940,3 +913,9 @@ index=email_logs sourcetype=mail_logs
 - Spent more time than expected on DMARC policy interpretation — added reference notes to `/notes/email-authentication.md`
 
 ---
+
+
+
+
+    print("  PCAP GENERATION COMPLETE — SAFE TO OPEN IN WIRESHARK")
+    print("═"*65 + "\n")
