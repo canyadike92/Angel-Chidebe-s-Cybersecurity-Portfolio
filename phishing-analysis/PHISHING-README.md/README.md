@@ -123,7 +123,7 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for in
 
 Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
 
-### Step 3: IOC extraction
+### Step 3: IOC Extraction
 
 I used the Python script in this repo (tools/ioc_extractor.py) to do the following: 
 - parse the all components using Python's urlparse, extract FQDN, subdomain, root domain, path, filename, and hosting platform
@@ -193,15 +193,13 @@ At this point I had high confidence that this was a close call rather than a bre
 Splunk queries showing 2 recipients, 0 clicks, 0 anomalous auth events
 
 ### Step 5: MISP threat intel enrichment
-I submitted the IOCs to MISP to see if any of them matched prior campaigns.
+I submitted the IOCs to MISP to see if any of them matched prior campaigns. The MISP event created automatically correlated my IOCs against known threat intelligence and flagged all 3 (IP,url,domain) as malicious, confirming malicious infrastructure.
 
-The IP 185.220.101[.]47 matched MISP Event #4471, which tracks Tor exit nodes used in financially motivated phishing targeting financial services. Fourteen prior events in the cluster.
-
-The domain and URLs did not match anything, which confirms this is fresh infrastructure being stood up for this specific campaign wave.
-
-The infrastructure pattern (Namecheap registrar, self-hosted nameservers, PHPMailer) matched the TTPs of TA2541 across nine prior campaigns. Medium confidence attribution.
-
-I created a new MISP event to document the fresh indicators and linked it to the existing cluster.
+| Attribute | Type | Galaxy Tag |
+|---|---|---|
+| 104.17.24.14 | ip-dst | Agent Threat Rules - Base64 Encoded Remote Code Execution via Raw IP |
+| https://bawafide.z27.web.core.windows.net/wrza8igw3uko.html | url | Agent Threat Rules - Data Exfiltration URL |
+| bawafide.z27.web.core.windows.net | domain |  Agent Threat Rules - Browser Credential Harvesting via Session Debug Tool |
 
 MISP enrichment showing IP match to prior campaign cluster and TA2541 attribution
 
@@ -227,6 +225,7 @@ Tasks completed:
  IP blocked at perimeter firewall
  Second recipient notified
  Case closed — no breach
+ 
 ## Findings summary
 | # | Finding | Severity | Detail |
 |---|---|---|---|
@@ -241,10 +240,16 @@ Tasks completed:
 | Technique ID | Technique name | Observed behavior |
 |---|---|---|
 | T1566.001 | Spearphishing attachment | Targeted phishing delivered via email |
+| T1583.001 | Acquire Infrastructure Domains |  Hosted phishing page on a trusted platform, to bypass email security filters |
 | T1566.002 | Spearphishing link | Malicious URL embedded in email body |
 | T1078 | Valid accounts | Objective was to steal M365 credentials |
 | T1598.003 | Phishing for information | Credential harvesting form on cloned login page |
 | T1071.001 | App layer protocol: web | Exfiltration via HTTPS GET to attacker server |
+
+### T1566.001 — Phishing: Spearphishing Attachment
+SMTP session captured in traffic.pcap confirms the email was sent
+from IP 173.66.46.112, which was blocked by Spamhaus with code 553
+(Frame 156). The sender spoofed MAILER-DAEMON@unicode.org.
 
 ### T1566.002 — Phishing: Spearphishing Link
 The phishing email contained a malicious URL embedded in the body.
@@ -252,10 +257,6 @@ The URL was defanged as:
 hxxps[://]bawafide[.]z27[.]web[.]core[.]windows[.]net/wrza8igw3uko[.]html
 This is consistent with spearphishing via link — a common initial
 access technique.
-
-### T1036.005 — Masquerading: Match Legitimate Name
-The attacker chose the subdomain 'bawafide' to mimic the English
-word 'bona fide', creating a false sense of legitimacy for the victim.
 
 ### T1583.001 — Acquire Infrastructure: Domains
 The attacker hosted the phishing page on Microsoft Azure (windows.net),
@@ -266,11 +267,6 @@ phishing kit was used.
 ### T1598.003 — Phishing for Information: Spearphishing Link
 The HTML page at the end of the URL is assessed to be a credential
 harvesting form — consistent with phishing for information via link.
-
-### T1566.001 — Phishing: Spearphishing Attachment
-SMTP session captured in traffic.pcap confirms the email was sent
-from IP 173.66.46.112, which was blocked by Spamhaus with code 553
-(Frame 156). The sender spoofed MAILER-DAEMON@unicode.org.
 
 ## Detection rule
 This SPL rule detects emails that fail all three authentication checks.
