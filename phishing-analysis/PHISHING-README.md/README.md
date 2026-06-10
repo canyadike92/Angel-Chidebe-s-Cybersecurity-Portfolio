@@ -14,16 +14,16 @@
 3. [Investigation walkthrough](#investigation-walkthrough)
    - [Step 1: Email header analysis](#step-1-email-header-analysis)
    - [Step 2: URL and domain analysis](#step-2-url-and-domain-analysis)
-   - [Step 3: IOC extraction](#step-4-ioc-extraction)
-   - [Step 4: SIEM correlation](#step-5-siem-correlation)
-   - [Step 5: Threat intel enrichment](#step-6-threat-intel-enrichment)
-   - [Step 6: Ticketing and escalation](#step-7-ticketing-and-escalation)
-5. [Findings](#findings)
-6. [MITRE ATT&CK mapping](#mitre-attck-mapping)
-7. [Detection rule](#detection-rule)
-8. [Recommendations](#recommendations)
-9. [Lessons learned](#lessons-learned)
-10. [Artifacts and evidence](#artifacts-and-evidence)
+   - [Step 3: IOC extraction](#step-3-ioc-extraction)
+   - [Step 4: SIEM correlation](#step-4-siem-correlation)
+   - [Step 5: Threat intel enrichment](#step-5-threat-intel-enrichment)
+   - [Step 6: Ticketing and escalation](#step-6-ticketing-and-escalation)
+4. [Findings](#findings)
+5. [MITRE ATT&CK mapping](#mitre-attck-mapping)
+6. [Detection rule](#detection-rule)
+7. [Recommendations](#recommendations)
+8. [Lessons learned](#lessons-learned)
+19. [Artifacts and evidence](#artifacts-and-evidence)
 
 ---
 
@@ -38,9 +38,6 @@
 - Produce a TheHive ticket with findings and recommended containment actions
 
 **What this project is:** This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence.
-
-**Source:** Sample .eml - Phishing Pot (github.com/rf-peixoto/phishing_pot/blob/main/email/sample-101.eml) 
-            URL         - PhisTank
 
 If you are a hiring manager reading this: I wanted to document not just what I found, but how I thought through each step and where I would do things differently next time.
 ---
@@ -72,7 +69,7 @@ From:        Microsoft account team <no-reply@microsoft[.]com>
 Subject:     Urgent: Microsoft account unusual sign-in activity. Verify your account
 Reply-To:    media-protection@usual-assist[.]com
 Return-Path: bounce@nisihfjoz.co[.]uk
-Received:    from nisihfjoz.co[.]uk (103.167.154[.]120)
+Received:    from nisihfjoz.co[.]ca (104.17.24[.]14)
 X-Mailer:    PHPMailer 6.6.4
 Message-ID:  <ce2fb41e-b910-4df7-bbfb-43b8126ba45c@DM6NAM11FT012.eop-nam11.prod.protection.outlook[.]com>
 ```
@@ -161,34 +158,37 @@ Full IOC pipeline is in iocs/ioc_extractor.py.
 ### Step 4: SIEM/Splunk Correlation
 Once I had the IOCs, I went into Splunk to figure out the blast radius. Three questions I wanted to answer:
 
-Did anyone else get this email?
+Who received this email?
 Did anyone click the link?
 Was there any suspicious auth activity after delivery?
 Query 1: who else received it
 
-index=email_logs sourcetype=mail_logs
-| search sender_domain="it-helpdeskk.com"
+index=phish_email
+| search sender_domain="windows.net"
 | stats count by recipient, subject, timestamp
 | sort -timestamp
-Returned two results. The original reporter and one other Finance mailbox.
+2 recipients identified: jsmith@company.com and mwilliams@company.com
+Both received the same phishing subject line from the malicious domain windows.net
+Delivered within 13 seconds of each other — indicating an automated bulk send
 
 Query 2: did anyone click
 
 index=proxy_logs sourcetype=squid
-| search url="*it-helpdeskk*" OR dest_ip="185.220.101.47"
+| search url="*it-helpdeskk*" OR dest_ip="104.17.24.14"
 | stats count by src_ip, url, user, timestamp
 | sort -timestamp
 Zero results. Neither user accessed the URL.
 
 Query 3: any post-delivery auth anomalies
 
-index=auth_logs sourcetype=o365_audit
-| search UserId IN ("jsmith@company.com", "mmurphy@company.com")
-| where EventCreationTime > "2024-03-14T09:47:00"
+index=phish_auth
+| search UserId IN ("jsmith@company.com", "mwilliams@company.com")
+| where EventCreationTime > "2024-03-15T09:14:22"
 | stats count by UserId, Operation, ClientIP, timestamp
-No anomalous logins. No foreign countries. No MFA bypass attempts.
-
-At this point I had high confidence that this was a close call rather than a breach.
+| sort -timestamp
+All activity originates from internal IPs 10.10.1.55 and 10.10.1.88
+Only normal operations — UserLoggedIn and MailboxLogin
+No password changes, no foreign IPs, no anomalies
 
 Splunk queries showing 2 recipients, 0 clicks, 0 anomalous auth events
 
