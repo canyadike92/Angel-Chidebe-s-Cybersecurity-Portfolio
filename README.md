@@ -1,6 +1,6 @@
 # 🛡️ Angel Chidebe's Blue Team Cybersecurity Portfolio
 
-Angel Chidebe | SOC Analyst / Blue Team | [Location or Remote]
+Angel Chidebe | SOC Analyst / Blue Team | [Remote]
 
 [LinkedIn](https://linkedin.com/in/angelchidebe) 
 [TryHackMe](https://tryhackme.com/p/angelchidebe) 
@@ -16,7 +16,7 @@ Focus areas: Detection and Monitoring, Threat Intelligence, incident response, l
 
 | Category        | Tools / Technologies                          |
 |-----------------|-----------------------------------------------|
-| SIEM            | Splunk, Elastic (ELK), Microsoft Sentinel     |
+| SIEM            | Splunk, Elastic (ELK),    |
 | EDR / AV        | CrowdStrike, Defender for Endpoint, Wazuh     |
 | Network         | Wireshark, Zeek, Suricata, tcpdump            |
 | Threat Intel    | MITRE ATT&CK, VirusTotal, MISP, OpenCTI       |
@@ -28,7 +28,7 @@ Focus areas: Detection and Monitoring, Threat Intelligence, incident response, l
 
 | Project | Description | Skills |
 |---------|-------------|--------|
-| [Phishing Email Analysis](./projects/phishing-analysis/) | Analyzed a phishing campaign... | Email forensics, IOC extraction |
+| [Phishing Email Analysis](./phishing-analysis/) | Analyzed a phishing campaign... | Email forensics, IOC extraction |
 | [Splunk Detection Rules](./projects/splunk-detections/) | Custom SPL rules for... | SIEM, SPL, MITRE ATT&CK |
 | [Home SOC Lab](./projects/home-lab/) | Built a detection lab with... | ELK, Sysmon, Wazuh |
 
@@ -41,7 +41,6 @@ Focus areas: Detection and Monitoring, Threat Intelligence, incident response, l
 
 # Currently Learning
 
-- [ ] PNPT / eJPT
 - [ ] Building a threat hunting playbook
 - [ ] Malware analysis fundamentals
 
