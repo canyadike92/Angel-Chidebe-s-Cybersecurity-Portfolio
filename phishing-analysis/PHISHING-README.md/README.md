@@ -25,7 +25,6 @@
 19. [Artifacts and evidence](#artifacts-and-evidence)
 
 ---
-
 ## Scenario and Objectives
 
 **Scenario:** A targeted phishing email impersonating Microsoft account team was reported by a user. The email claimed there was an unusual sign-in activity in the user's Microsoft 365 account which could lead to account suspension, prompting an immediate reset via an embedded link. The embedded link contained a malicious URL redirecting to a spoofed Microsoft login page hosted on a domain through a malicious URL.
@@ -40,7 +39,6 @@
 
 If you are a hiring manager reading this: I wanted to document not just what I found, but how I thought through each step and where I would do things differently next time.
 ---
-
 ## Tools used
 
 | Tool | Purpose |
@@ -55,7 +53,6 @@ If you are a hiring manager reading this: I wanted to document not just what I f
 | CyberChef | Base64 decoding, URL defanging |
 
 ---
-
 ## Investigation walkthrough
 
 ### Step 1: Email header analysis
@@ -80,6 +77,7 @@ Then the authentication results confirmed it:
 | SPF | FAIL | protection.outlook.com: nisihfjoz.co[.]uk does not designate permitted sender hosts |
 | DKIM | FAIL | Domain dkim:microsoft[.]com:smtp is invalid, No key for signature present |
 | DMARC | FAIL | No policy published, nothing to enforce |
+**Header analysis screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ---
 Observations: Two things jumped out immediately. The Reply-To (@usual-assist[.]com) address differs from the From Microsoft account team <MAILER-DAEMON@unicode[.]org) address, a common indicator that proves the attacker wants replies to go somewhere they control. The other flag is PHPMailer 6.6.4 in the X-Mailer field indicates bulk sending infrastructure, not a corporate mail server. 
@@ -117,6 +115,7 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for in
 - It could be a legitimate Microsoft link being abused to appear trustworthy
 
 Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
+**URL scan results screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ### Step 3: IOC Extraction
 
@@ -187,6 +186,7 @@ UserLoggedIn and MailboxLogin
 No password changes, no foreign IPs, no anomalies
 
 Splunk queries showing 2 recipients, 0 clicks, 0 anomalous auth events
+**Splunk correlation screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ### Step 5: MISP threat intel enrichment
 I submitted the IOCs to MISP to correlate the threat information. The MISP event created automatically correlated my IOCs against known threat intelligence and flagged all 3 (IP,url,domain) as malicious, confirming malicious infrastructure.
@@ -198,6 +198,7 @@ I submitted the IOCs to MISP to correlate the threat information. The MISP event
 | bawafide.z27.web.core.windows.net | domain |  Agent Threat Rules - Browser Credential Harvesting via Session Debug Tool |
 
 MISP enrichment showing **(WORK ON THIS)**
+**MISP enrichment screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ### Step 6: Ticketing and escalation
 I opened a TheHive case to document findings and track containment.
@@ -220,6 +221,7 @@ Tasks completed:
  Sending domain blocked at email gateway
  IP blocked at perimeter firewall
  Case closed — no breach
+ **TheHive screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
  
 ## Findings Summary
 | # | Finding | Severity | Detail |
@@ -240,7 +242,7 @@ Tasks completed:
 | T1598.003 | Phishing for information | HTML page at the end of the URL harvests credentials |
 
 ## Detection rule
-This SPL rule detects emails that fail all three authentication checks.
+I built a production-ready detection rule.This SPL rule detects emails that fail all three authentication checks.
 index=email_logs
 | eval spf_fail=if(spf_result="fail" OR spf_result="none", 1, 0)
 | eval dkim_fail=if(dkim_result="fail" OR dkim_result="none", 1, 0)
@@ -253,6 +255,7 @@ index=email_logs
 False positive rate is low. Most legitimate enterprise senders have at least SPF configured. Route these to analyst review rather than auto-block.
 Tuning note: allowlist known bulk senders like marketing platforms and ticketing tools that may intentionally send without DKIM.
 
+**Detection rule screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png) 
 ---
 ## Recommendations
 
