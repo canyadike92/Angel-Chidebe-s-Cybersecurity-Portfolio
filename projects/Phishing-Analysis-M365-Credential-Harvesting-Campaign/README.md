@@ -77,9 +77,10 @@ Then the authentication results confirmed it:
 | SPF | FAIL | protection.outlook.com: nisihfjoz.co[.]uk does not designate permitted sender hosts |
 | DKIM | FAIL | Domain dkim:microsoft[.]com:smtp is invalid, No key for signature present |
 | DMARC | FAIL | No policy published, nothing to enforce |
-**Header analysis screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ---
+**Header analysis screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
+
 Observations: Two things jumped out immediately. The Reply-To (@usual-assist[.]com) address differs from the From Microsoft account team <MAILER-DAEMON@unicode[.]org) address, a common indicator that proves the attacker wants replies to go somewhere they control. The other flag is PHPMailer 6.6.4 in the X-Mailer field indicates bulk sending infrastructure, not a corporate mail server. 
 
 ### Step 2: URL and domain analysis
@@ -115,6 +116,7 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for in
 - It could be a legitimate Microsoft link being abused to appear trustworthy
 
 Phishers often abuse trusted platforms like Microsoft to bypass spam filters. This is a common red flag in phishing emails — using trusted, legitimate platforms to host malicious content or redirect victims, making it harder for security tools to block them.
+
 **URL scan results screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ### Step 3: IOC Extraction
@@ -138,7 +140,7 @@ I used the Python script in this repo (tools/ioc_extractor.py) to do the followi
   MD5                   : [d41d8cd98f00b204e9800998ecf8427e]
   SHA256                : [e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855]
 ```
-How it all connects together **(WORK ON THIS)**
+How it all connects together 
 → The attacker hosted a phishing page on Azure (104.17.24.14)
 → Sent phishing email via SMTP (173.66.46.112)
 → Mail server blocks it (Frame 156 code 553)
@@ -146,10 +148,10 @@ How it all connects together **(WORK ON THIS)**
 
 **IOC extraction screenshots:** [`tools/ioc_extractor.py`](../../tools/ioc_extractor.py)
 
-Full IOC pipeline is in iocs/ioc_extractor.py.
+Full IOC pipeline script is in IOCs/ioc_extractor.py.
 
 ### Step 4: SIEM Correlation
-Once I had the IOCs, I went into Splunk to figure out the blast radius. Three questions I wanted to answer:
+Once I had the IOCs, I went into Splunk to figure out the blast radius. I used ai to generate sample data (email, proxy, auth logs) to simulate a real-world phishing incident for demonstration purposes. Three questions I wanted to answer:
 
 Who received this email?
 Did anyone click the link?
@@ -162,16 +164,16 @@ index=phish_email
 | stats count by recipient, subject, timestamp
 | sort -timestamp
 -2 recipients identified: jsmith@company.com and mwilliams@company.com
--Both received the same phishing subject line from the malicious domain windows.net
--Delivered within 13 seconds of each other — indicating an automated bulk send
+-Both received the same phishing subject line within 13 seconds of each other, indicating an automated bulk send from the malicious domain.
 
 Query 2: did anyone click
 
 index=proxy_logs sourcetype=squid
-| search url="*MAILER-DAEMON@unicode.org*" OR dest_ip="104.17.24.14"
+| search url="*MAILER-DAEMON@unicode.org*" OR dest_ip="173.17.24.14"
 | stats count by src_ip, url, user, timestamp
 | sort -timestamp
--Zero results. Neither user accessed the URL.
+-Zero clicks detected
+-Neither recipient visited the phishing URL or contacted the associated malicious IP
 
 Query 3: any post-delivery auth anomalies
 
@@ -180,13 +182,15 @@ index=phish_auth
 | where EventCreationTime > "2024-03-15T09:14:22"
 | stats count by UserId, Operation, ClientIP, timestamp
 | sort -timestamp
--All activity originates from internal IPs 10.10.1.55 and 10.10.1.88
-Only normal operations 
-UserLoggedIn and MailboxLogin
-No password changes, no foreign IPs, no anomalies
 
-Splunk queries showing 2 recipients, 0 clicks, 0 anomalous auth events
-**Splunk correlation screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
+-All activity originates from internal IPs 10.10.1.55 and 10.10.1.88
+-Only normal operations, UserLoggedIn and MailboxLogin
+-No password changes, no foreign IPs, no anomalous authentication events detectedor MFA changes detected
+
+**Splunk queries showing 2 recipients, 0 clicks, 0 anomalous auth events:** 
+[`screenshots/header analysis`](../../screenshots/splunk_query1.png)
+[`screenshots/header analysis`](../../screenshots/splunk_query2.png)
+[`screenshots/header analysis`](../../screenshots/splunk_query3.png)
 
 ### Step 5: MISP threat intel enrichment
 I submitted the IOCs to MISP to correlate the threat information. The MISP event created automatically correlated my IOCs against known threat intelligence and flagged all 3 (IP,url,domain) as malicious, confirming malicious infrastructure.
@@ -197,7 +201,6 @@ I submitted the IOCs to MISP to correlate the threat information. The MISP event
 | https://bawafide.z27.web.core.windows.net/wrza8igw3uko.html | url | Agent Threat Rules - Data Exfiltration URL |
 | bawafide.z27.web.core.windows.net | domain |  Agent Threat Rules - Browser Credential Harvesting via Session Debug Tool |
 
-MISP enrichment showing **(WORK ON THIS)**
 **MISP enrichment screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ### Step 6: Ticketing and escalation
@@ -277,6 +280,7 @@ Tuning note: allowlist known bulk senders like marketing platforms and ticketing
 - Set up URL detonation in a local sandboxed VM rather than relying solely on URLScan.io — some evasive pages detect automated analysis and serve benign content
 - Create a structured phishing intake form in TheHive to standardize what gets captured on every case from the start
 - The IOC extraction was done manually at first and the Python script came later. In a real SOC environment that should be automated at intake. A few lines in an email parsing pipeline would have saved 10 minutes per case and reduced the chance of missing something.
+- If Splunk Query 2 or 3 returned hits, I would escalate immediately because this shows we've moved from phishing delivery to potential compromise.
 
 **Skills gaps identified and addressed:**
 - Spent more time than expected on DMARC policy interpretation — added reference notes to `/notes/email-authentication.md`
@@ -287,14 +291,13 @@ Tuning note: allowlist known bulk senders like marketing platforms and ticketing
 ## Artifacts and evidence
 
 ```
-phishing-analysis/
-├── README.md                          <- This file
-├── sample/
-│   └── phishing_sample.eml            <- Sanitized .eml 
+Phishing-Analysis-M365-Credential-Harvesting-Campaign/
 ├── iocs/
 │   ├── iocs_extractor.py              <- Defanged IOC list
     ├── deep_url_analysis
     ├── PCAP file                      <- smtp_session.pcap
+├── Phishing-sample.eml                <- Sanitized .eml 
+├── README.md                          <- This file
 ├── screenshots/
 │   ├── 01-header-analysis.png         <- MXToolbox header parser output
 │   ├── 02-virustotal-url.png          <- VirusTotal URL detection results
