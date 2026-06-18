@@ -35,7 +35,7 @@
 - Identify any users who may have clicked the link or submitted credentials
 - Produce a TheHive ticket with findings and recommended containment actions
 
-**What this project is:** This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with medium confidence. No real incident data is included.
+**What this project is:** This write-up documents the full investigation from raw email headers to containment and a closed ticket. No credentials were submitted. The sending infrastructure was traced to a known threat actor cluster with high confidence. No real incident data is included.
 
 If you are a hiring manager reading this: I wanted to document not just what I found, but how I thought through each step and where I would do things differently next time.
 ---
@@ -56,7 +56,7 @@ If you are a hiring manager reading this: I wanted to document not just what I f
 ## Investigation walkthrough
 
 ### Step 1: Email header analysis
-The first thing I do with any reported phishing email is pull the raw headers because it tells me where the email actually came from, not just who it claims to be from. The raw headers were extracted from the .eml file and analyzed manually with MXToolbox.
+The first thing I do with any reported phishing email is pull the raw headers because it tells me where the email actually came from, not just who it claims to be from. The raw headers were extracted from a sample.eml file (with details reconstructed for demonstration purposes) and analyzed manually with MXToolbox.
 
 **Key header fields examined:**
 Email header analysis showing SPF, DKIM, and DMARC failures
@@ -95,7 +95,7 @@ Domain:       windows.net
 Registered:   10-08-1995
 Registrar:    MarkMonitor Inc.
 Name servers: ns1-39.azure-dns.com, ns2-39.azure-dns.net, ns3-39.azure-dns.org, ns4-39.azure-dns.info
-Corporation: Microsoft corporation
+Corporation:  Microsoft corporation
 ```
 I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for individual analysis. The summary results were pretty definitive:
 
@@ -110,7 +110,7 @@ I ran the domain through CiscoTalos, VirusTotal and URLScan.io seperately for in
 - IP 20.150.1.1 was operating from Canada although Microsoft Corporation is a USA company mainly operating in the USA
 
 **Here is a breakdown of my observation:**
-- MICROSOFT-CORP-MSN-AS-BLOCK is the name of Microsoft's Autonomous System (AS), which is a block of IP addresses owned and managed by Microsoft Corporation. This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
+- The whois resolves MICROSOFT-CORP-MSN-AS-BLOCK to Microsoft's Autonomous System (AS), which is a block of IP addresses owned and managed by Microsoft Corporation. This likely means that one of the IPs or URLs found in the phishing email resolves to Microsoft's infrastructure, which could indicate:
 
 - The attacker used Microsoft services (like OneDrive, SharePoint, or Outlook) to host malicious content which is a common phishing tactic
 - It could be a legitimate Microsoft link being abused to appear trustworthy
@@ -169,7 +169,7 @@ index=phish_email
 Query 2: did anyone click
 
 index=proxy_logs sourcetype=squid
-| search url="*MAILER-DAEMON@unicode.org*" OR dest_ip="173.17.24.14"
+| search url="*MAILER-DAEMON@unicode.org*" OR dest_ip="173.66.46.112"
 | stats count by src_ip, url, user, timestamp
 | sort -timestamp
 -Zero clicks detected
@@ -193,12 +193,11 @@ index=phish_auth
 [`screenshots/header analysis`](../../screenshots/splunk_query3.png)
 
 ### Step 5: MISP threat intel enrichment
-I submitted the IOCs to MISP to correlate the threat information. The MISP event created automatically correlated my IOCs against known threat intelligence and flagged all 3 (IP,url,domain) as malicious, confirming malicious infrastructure.
-
+I submitted the IOCs to MISP to correlate the threat information. MISP automatically correlated the IOCs against known threat intelligence and flagged all 3 (IP,url,domain) as malicious.
 | Attribute | Type | Galaxy Tag |
 |---|---|---|
 | 104.17.24.14 | ip-dst | Agent Threat Rules - Base64 Encoded Remote Code Execution via Raw IP |
-| https://bawafide.z27.web.core.windows.net/wrza8igw3uko.html | url | Agent Threat Rules - Data Exfiltration URL |
+| https://bawafide.z27.web.core.windows[.]net/wrza8igw3uko.html | url | Agent Threat Rules - Data Exfiltration URL |
 | bawafide.z27.web.core.windows.net | domain |  Agent Threat Rules - Browser Credential Harvesting via Session Debug Tool |
 
 **MISP enrichment screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
@@ -224,6 +223,7 @@ Tasks completed:
  Sending domain blocked at email gateway
  IP blocked at perimeter firewall
  Case closed — no breach
+ 
  **TheHive screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
  
 ## Findings Summary
@@ -245,7 +245,8 @@ Tasks completed:
 | T1598.003 | Phishing for information | HTML page at the end of the URL harvests credentials |
 
 ## Detection rule
-I built a production-ready detection rule.This SPL rule detects emails that fail all three authentication checks.
+I built a production-ready detection rule. This SPL rule detects emails that fail all three authentication checks.
+
 index=email_logs
 | eval spf_fail=if(spf_result="fail" OR spf_result="none", 1, 0)
 | eval dkim_fail=if(dkim_result="fail" OR dkim_result="none", 1, 0)
@@ -258,8 +259,9 @@ index=email_logs
 False positive rate is low. Most legitimate enterprise senders have at least SPF configured. Route these to analyst review rather than auto-block.
 Tuning note: allowlist known bulk senders like marketing platforms and ticketing tools that may intentionally send without DKIM.
 
-**Detection rule screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png) 
 ---
+ **Detection rule screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
+ 
 ## Recommendations
 
 1. **Enforce DMARC reject policy** on the organization's own sending domains to prevent spoofing of internal addresses (internal spoofing attempts are blocked before delivery)
