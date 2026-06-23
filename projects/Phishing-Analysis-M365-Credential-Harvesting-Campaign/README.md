@@ -18,11 +18,12 @@
    - [Step 5: Threat intel enrichment](#step-5-MISP-threat-intel-enrichment)
    - [Step 6: Ticketing and escalation](#step-6-ticketing-and-escalation)
 4. [Findings](#findings-summary)
-5. [MITRE ATT&CK mapping](#mitre-attck-mapping)
+5. [MITRE ATT&CK mapping](#mitre-attck-mapping)  
 6. [Detection rule](#detection-rule)
-7. [Recommendations](#recommendations)
-8. [Lessons learned](#lessons-learned)
-19. [Artifacts and evidence](#artifacts-and-evidence)
+7. [Containment actions taken](#containment-actions-taken)
+8. [Recommendations](#recommendations)
+9. [Lessons learned](#lessons-learned)
+10. [Artifacts and evidence](#artifacts-and-evidence)
 
 ---
 ## Scenario and Objectives
@@ -64,7 +65,7 @@ Email header analysis showing SPF, DKIM, and DMARC failures
 From:        Microsoft account team <MAILER-DAEMON@unicode[.]org>
 Subject:     Urgent: Microsoft 365 account unusual sign-in activity. Verify your account
 Reply-To:    media-protection@usual-assist[.]com
-Return-Path: bounce@nisihfjoz.co[.]uk
+Return-Path: bounce@nisihfjoz.co[.]ca
 Received:    from nisihfjoz.co[.]ca (104.17.24[.]14)
 X-Mailer:    PHPMailer 6.6.4
 Message-ID:  <ce2fb41e-b910-4df7-bbfb-43b8126ba45c@DM6NAM11FT012.eop-nam11.prod.protection.outlook[.]com>
@@ -203,14 +204,10 @@ I submitted the IOCs to MISP to correlate the threat information. MISP automatic
 **MISP enrichment screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
 
 ### Step 6: Ticketing and escalation
-I opened a TheHive case to document findings and track containment.
+I opened a TheHive case to document findings and track containment. However, TheHive case documentation was prepared but could not be screenshotted 
 
- Sending domain it-helpdeskk[.]com blocked at email gateway
- IP 185.220.101[.]47 blocked at perimeter firewall
- IOCs shared to MISP event for cross-org visibility
- Detection rule added to SOC runbook
- Finance team flagged for targeted phishing simulation
- Case closed, no breach confirmed
+
+
 TheHive case showing completed task checklist and resolution
 
 Tasks completed:
@@ -262,6 +259,13 @@ Tuning note: allowlist known bulk senders like marketing platforms and ticketing
 ---
  **Detection rule screenshots:** [`screenshots/header analysis`](../../screenshots/header_analysis.png)
  
+ Containment Actions Taken
+
+Sending domain it-helpdeskk.com blocked at email gateway
+IP 185.220.101.47 blocked at perimeter firewall
+Both recipients notified and confirmed no credentials were entered
+IOCs submitted to MISP and tagged under existing infrastructure cluster
+Detection rule deployed in Splunk to catch future triple SPF/DKIM/DMARC failures
 ## Recommendations
 
 1. **Enforce DMARC reject policy** on the organization's own sending domains to prevent spoofing of internal addresses (internal spoofing attempts are blocked before delivery)
@@ -294,24 +298,22 @@ Tuning note: allowlist known bulk senders like marketing platforms and ticketing
 
 ```
 Phishing-Analysis-M365-Credential-Harvesting-Campaign/
-├── iocs/
-│   ├── iocs_extractor.py              <- Defanged IOC list
-    ├── deep_url_analysis
-    ├── PCAP file                      <- smtp_session.pcap
-├── Phishing-sample.eml                <- Sanitized .eml 
 ├── README.md                          <- This file
+├── iocs/
+│   └── iocs_extractor.py              <- Defanged IOC list
+    └── PCAP file                      <- smtp_session.pcap
+├── Phishing-sample.eml                <- Sanitized .eml (fabricated details)
 ├── screenshots/
-│   ├── 01-header-analysis.png         <- MXToolbox header parser output
-│   ├── 02-virustotal-url.png          <- VirusTotal URL detection results
-│   ├── 03-urlscan-result.png          <- URLScan.io results page screenshot
-│   ├── 05-ioc-extractor.png           <- Python script powershell terminal output
-│   ├── 06-splunk-correlation.png      <- Splunk SPL query and results table
-│   ├── 07-misp-enrichment.png         <- MISP event with IOC attributes
-│   └── 08-thehive-case.png            <- TheHive case with tasks and observables
+│   └── 01-header-analysis.png         <- MXToolbox header parser output
+│   └── 02-virustotal-url.png          <- VirusTotal URL detection results
+│   └── 03-urlscan-result.png          <- URLScan.io results page screenshot
+│   └── 05-ioc-extractor.png           <- Python script powershell terminal output
+│   └── 06-splunk-correlation.png      <- Splunk SPL query and results table
+│   └── 07-misp-enrichment.png         <- MISP event with IOC attributes
 
 ```
 ---
 
-> **Important Disclosure:** All samples, IPs, domains, and usernames are sanitized, fictional, or sourced from publicly available CTF and phishing training platforms. No real incident data is included.
+> **Important Disclosure:** All samples, IPs, domains, and usernames are sanitized, fictional, or sourced from publicly available sources. No real incident data is included.
 
 ---
