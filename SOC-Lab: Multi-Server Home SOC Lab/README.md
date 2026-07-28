@@ -1,4 +1,4 @@
-# SOC-Lab-03: Multi-Server Home SOC Lab
+# SOC-Lab: Multi-Server Home SOC Lab
 
 A multi-server home Security Operations Center (SOC) lab built in VirtualBox on an isolated NAT network. The lab mirrors a real detection pipeline by separating the log aggregation server, the detection stack, the monitored endpoint, and the attacker machine onto their own virtual machines. Attacks are launched from a Kali box against a Windows 10 endpoint, and the resulting activity is detected, mapped to MITRE ATT&CK, and triaged in Wazuh.
 
