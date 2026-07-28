@@ -1,4 +1,4 @@
-# Security Incident Report: SOC-Lab-03
+# Security Incident Report: SOC-Lab
 
 **Incident ID:** SOC-Lab-IR-001
 **Report date:** 2026-07-05
