@@ -1,4 +1,4 @@
-# SOC-Lab-03: Home SOC Lab, Attack Simulation, and Incident Investigation
+# SOC-Lab: Home SOC Lab, Attack Simulation, and Incident Investigation
 
 A self-built, multi-VM Security Operations Center lab where I simulated attacks against a
 monitored Windows endpoint, detected and triaged the activity in Wazuh, and documented a full
