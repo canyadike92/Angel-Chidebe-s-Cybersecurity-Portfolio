@@ -18,17 +18,17 @@ Focus areas: Detection and Monitoring, Threat Intelligence, incident response, l
 |-----------------|-----------------------------------------------|
 | SIEM            | Splunk, Elastic (ELK),    |
 | EDR / AV        | CrowdStrike, Defender for Endpoint, Wazuh     |
-| Network         | Wireshark, Zeek, Suricata, tcpdump            |
+| Network         | Wireshark, Suricata, tcpdump            |
 | Threat Intel    | MITRE ATT&CK, VirusTotal, MISP, OpenCTI       |
 | Scripting       | Python, Bash, PowerShell                      |
-| Ticketing/SOAR  | TheHive, Jira, Shuffle                        |
+| Ticketing/SOAR  | Jira                        |
 | Forensics       | Volatility, Autopsy, FTK Imager               |
 
 # Portfolio Projects
 
 | Project | Description | Skills |
 |---------|-------------|--------|
-| [Phishing Email Analysis](./phishing-analysis/) | Analyzed a phishing campaign... | Email forensics, IOC extraction |
+| [Phishing Email Analysis](./Phishing-Analysis/) | Analyzed a phishing campaign... | Email forensics, IOC extraction |
 | [Splunk Detection Rules](./projects/splunk-detections/) | Custom SPL rules for... | SIEM, SPL, MITRE ATT&CK |
 | [Home SOC Lab](./projects/home-lab/) | Built a detection lab with... | ELK, Sysmon, Wazuh |
 
@@ -36,7 +36,6 @@ Focus areas: Detection and Monitoring, Threat Intelligence, incident response, l
 
 - CompTIA Security+ (2025)
 - CompTIA Network+  (2026)
-- Blue Team Labs Online — [Certificate](./certifications/)
 - TryHackMe — SOC Level 1 Path
 
 # Currently Learning
