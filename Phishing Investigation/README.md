@@ -51,7 +51,7 @@ def extract_domain_from_url(url):
     return host
 ```
 
-After the fix, re-running the same email produced a clean domain lookup (`monkey.org`) instead of the HTTP 400 error. See `screenshots/analyzer-output-email0001-fixed.png` for the confirmed before/after behavior.
+After the fix, re-running the same email produced a clean domain lookup (`monkey.org`) instead of the HTTP 400 error. See `screenshots/phishing-investigation-analyzer-output-email0001-fixed.png` for the confirmed before/after behavior.
 
 ## Sample results
 
