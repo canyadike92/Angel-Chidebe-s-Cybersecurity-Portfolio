@@ -79,4 +79,3 @@ Note: the VirusTotal free tier is limited to 4 requests/minute, so the script pa
 ## Files in this repo
 - `phishing_analyzer.py` — the analyzer script
 - `screenshots/` — labeled terminal output for the three sample emails
-- `emails/` — the three sample `.eml` files analyzed in this write-up
