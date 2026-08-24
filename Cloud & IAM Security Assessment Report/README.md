@@ -17,7 +17,7 @@ The IAM user `raynor` was attached to a customer-managed policy (`cg-raynor-poli
 
 *Evidence: `screenshots/03-access-denied-before.png` (denied before escalation), `screenshots/07-set-default-policy-version.png` (rollback command executed), `screenshots/08-access-granted-after.png` and `screenshots/08b-access-granted-after-iam-create.png` (access confirmed after escalation)*
 
-**Exactly how to fix it**
+**Exactly how I fixed it**
 - Remove `iam:SetDefaultPolicyVersion` from all non-administrative IAM policies. Only trusted admin roles should hold it.
 - Delete unused or outdated policy versions instead of leaving them in version history (`aws iam delete-policy-version`).
 - Enable IAM Access Analyzer to flag policies granting unused or excessive permissions.
@@ -36,7 +36,7 @@ An S3 bucket was created with "Block all public access" disabled and a bucket po
 **Why it's dangerous**
 A public bucket policy combined with disabled Block Public Access settings means any object placed in the bucket, including ones added later without a second thought, becomes world-readable. This is a common real-world cause of data exposure incidents, since it often results from a temporary or convenience-driven configuration that's never reverted.
 
-**Exactly how to fix it**
+**Exactly how I fixed it**
 - Re-enable all four "Block Public Access" settings at the bucket level.
 - Remove the public bucket policy; scope any bucket policy to specific, named principals (IAM users/roles) rather than `"*"`.
 - Enable the account-level S3 Block Public Access setting so no future bucket can be made public by mistake, even by an authorized user.
