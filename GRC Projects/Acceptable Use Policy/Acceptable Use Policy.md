@@ -2,14 +2,14 @@
 
 | Field | Detail |
 |---|---|
-| Organization | [Organization Name] |
+| Organization | [ABC Company LTD] |
 | Policy Title | Acceptable Use Policy |
 | Version | 1.0 |
-| Effective Date | [Date] |
-| Next Review Date | [Date + 12 months] |
+| Effective Date | [01/01/2026] |
+| Next Review Date | [01/01/2027] |
 | Policy Owner | [Chief Information Security Officer or equivalent] |
 | Approved By | [Executive Sponsor Title] |
-| Prepared By | [Your Name] |
+| Prepared By | [Angel Chidebe] |
 | Standard Alignment | ISO/IEC 27001:2022, Annex A |
 
 ---
